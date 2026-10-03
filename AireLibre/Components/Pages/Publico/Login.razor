@@ -1,0 +1,133 @@
+@*
+    Login.razor — Vista 4: inicio de sesión (/login).
+
+    QUÉ HACE: pide usuario y contraseña y, si son correctos, abre la sesión y
+    lleva al panel.
+
+    QUÉ NO HACE: no valida las credenciales por su cuenta. Se las pasa a
+    SesionService y solo muestra lo que ese servicio responde. Si la validación
+    estuviera aquí, habría que repetirla en cualquier otra pantalla que quisiera
+    autenticar.
+
+    USA EL LAYOUT PÚBLICO (el que el enrutador aplica por defecto), porque es
+    una página a la que se llega SIN sesión: quien no ha entrado todavía debe
+    conservar el menú del sitio para poder devolverse.
+*@
+@page "/login"
+@inject SesionService Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Ingresar — STRONGBODY</PageTitle>
+
+<section class="seccion">
+    <div class="contenedor">
+        <div class="grid grid-2" style="align-items: start;">
+
+            <div>
+                <span class="eyebrow">Acceso de profesores</span>
+                <h1>Entra al panel</h1>
+                <p>
+                    Desde el panel se administran los cupos, los clientes, los
+                    pagos y el inventario. Los dos profesores ven y administran
+                    exactamente lo mismo.
+                </p>
+
+                @*
+                    Credenciales a la vista: esto es un trabajo académico y
+                    quien lo revise necesita poder entrar. En un sistema real
+                    este bloque NO existiría.
+                *@
+                <div class="aviso" style="margin-top: 1.5rem;">
+                    <p>
+                        <strong>Trabajo académico:</strong> usuarios de prueba
+                        <code>profe</code> y <code>profesora</code>, ambos con
+                        la contraseña <code>aire2026</code>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="tarjeta">
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="aviso aviso--error" role="alert">
+                        <p>@_error</p>
+                    </div>
+                }
+
+                @* Formulario de verdad, para que Enter también envíe. *@
+                <form @onsubmit="Entrar" @onsubmit:preventDefault="true">
+
+                    <div class="campo">
+                        <label for="usuario">Usuario</label>
+                        <input id="usuario" type="text" autocomplete="username"
+                               placeholder="profe o profesora"
+                               @ref="_campoUsuario"
+                               @bind="_nombreUsuario" @bind:event="oninput" />
+                    </div>
+
+                    <div class="campo">
+                        <label for="contrasena">Contraseña</label>
+                        <input id="contrasena" type="password" autocomplete="current-password"
+                               @bind="_contrasena" @bind:event="oninput" />
+                    </div>
+
+                    <button type="submit" class="btn btn--primario">Ingresar</button>
+                </form>
+
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@code {
+    private string _nombreUsuario = string.Empty;
+    private string _contrasena = string.Empty;
+    private string _error = string.Empty;
+
+    // Referencia al primer campo, para dejar el cursor listo al abrir la página.
+    private ElementReference _campoUsuario;
+
+    /// <summary>
+    /// Si alguien que ya tiene sesión abierta entra a /login, no tiene sentido
+    /// volver a pedirle las credenciales: se le manda directo al panel.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        if (Sesion.HaySesion)
+        {
+            Navegacion.NavigateTo("/panel", replace: true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primerRender)
+    {
+        // El foco al campo de usuario solo la primera vez: si se pusiera en
+        // cada render, el cursor saltaría al escribir la contraseña.
+        if (primerRender && !Sesion.HaySesion)
+        {
+            await _campoUsuario.FocusAsync();
+        }
+    }
+
+    /// <summary>
+    /// Pide a SesionService que valide. Si acepta, se va al panel; si no, se
+    /// muestra el error y se borra la contraseña, no el usuario: casi siempre
+    /// lo que se escribió mal fue la contraseña.
+    /// </summary>
+    private void Entrar()
+    {
+        var resultado = Sesion.IniciarSesion(_nombreUsuario, _contrasena);
+
+        if (resultado.Exito)
+        {
+            Navegacion.NavigateTo("/panel");
+        }
+        else
+        {
+            _error = resultado.Mensaje;
+            _contrasena = string.Empty;
+        }
+    }
+}

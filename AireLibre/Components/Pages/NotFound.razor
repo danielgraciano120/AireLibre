@@ -1,0 +1,24 @@
+@*
+    NotFound.razor — Página mostrada cuando la ruta pedida no existe.
+
+    Usa el layout público (SitioLayout), que es el que el enrutador aplica por
+    defecto, así que quien se pierde conserva la cabecera y el menú para volver.
+*@
+@page "/not-found"
+
+<PageTitle>Página no encontrada — STRONGBODY</PageTitle>
+
+<section class="seccion">
+    <div class="contenedor">
+        <span class="eyebrow">Error 404</span>
+        <h1>Esta página no existe</h1>
+        <p class="texto-secundario">
+            La dirección que abriste no corresponde a ninguna sección del sitio.
+        </p>
+
+        <div class="btn-fila" style="margin-top: 1.5rem;">
+            <a class="btn btn--primario" href="/">Volver al inicio</a>
+            <a class="btn btn--contorno" href="grupos">Ver los horarios</a>
+        </div>
+    </div>
+</section>

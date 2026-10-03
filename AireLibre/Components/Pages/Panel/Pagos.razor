@@ -1,0 +1,202 @@
+@*
+    Pagos.razor — Vista 9: control manual de pagos (/panel/pagos).
+
+    QUÉ HACE: el profesor marca a mano quién está al día y quién no.
+
+    ACLARACIÓN QUE IMPORTA: aquí NO se cobra ni se procesa dinero. No hay
+    pasarela de pago, ni recibos, ni montos pagados, ni historial de
+    transacciones. Lo único que existe es esta marca, que el profesor pone y
+    quita cuando le pagan en efectivo (ver Suscripcion.cs).
+
+    ORDEN DE LA TABLA: primero los que están en mora y, dentro de ellos, los
+    más vencidos arriba. La pantalla se abre para resolver pendientes, así que
+    lo pendiente va de primero; lo que ya está al día no necesita atención.
+*@
+@page "/panel/pagos"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ClienteService Clientes
+
+<PageTitle>Pagos — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Control manual</span>
+        <h1>Pagos</h1>
+    </div>
+    <p class="texto-secundario texto-chico" style="margin: 0; text-align: right;">
+        @EnMora en mora · @AlDia al día
+    </p>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @if (!string.IsNullOrEmpty(_mensaje))
+    {
+        <div class="aviso" role="status">
+            <p>@_mensaje</p>
+        </div>
+    }
+
+    <div class="aviso" style="border-left-color: var(--gris); background: rgba(110,110,115,0.08);">
+        <p class="texto-chico">
+            El sitio no recibe pagos. Esta pantalla solo registra lo que ya
+            pasó en efectivo: marca a quien te pagó y desmarca a quien se
+            atrasó.
+        </p>
+    </div>
+
+    @if (Filas.Count == 0)
+    {
+        <div class="vacio">
+            <p>Todavía no hay clientes con suscripción abierta.</p>
+        </div>
+    }
+    else
+    {
+        <div class="tabla-scroll">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Plan</th>
+                        <th>Próximo pago</th>
+                        <th>Situación</th>
+                        <th>Estado</th>
+                        <th class="celda-acciones">Cambiar a</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fila in Filas)
+                    {
+                        <tr>
+                            <td>
+                                <a href="panel/clientes/@fila.Cliente.Id">@fila.Cliente.NombreCompleto</a>
+                                <br />
+                                <span class="texto-secundario texto-chico">@fila.Cliente.Telefono</span>
+                            </td>
+
+                            <td>@Datos.NombrePlan(fila.Suscripcion.PlanId)</td>
+
+                            <td>@fila.Suscripcion.FechaProximoPago.ToString("d 'de' MMMM", Espanol)</td>
+
+                            @* La situación mira la FECHA; el estado mira la MARCA
+                               del profesor. Son cosas distintas a propósito: alguien
+                               puede tener la fecha vencida y estar al día porque ya
+                               pagó y todavía no se le corrió la fecha. *@
+                            <td>
+                                @if (fila.DiasRestantes < 0)
+                                {
+                                    <span class="distintivo distintivo--alerta">
+                                        Vencido hace @(-fila.DiasRestantes) @(fila.DiasRestantes == -1 ? "día" : "días")
+                                    </span>
+                                }
+                                else if (fila.DiasRestantes == 0)
+                                {
+                                    <span class="distintivo distintivo--alerta">Vence hoy</span>
+                                }
+                                else if (fila.DiasRestantes == 1)
+                                {
+                                    <span class="distintivo distintivo--alerta">Vence mañana</span>
+                                }
+                                else
+                                {
+                                    <span class="distintivo distintivo--neutro">
+                                        Quedan @fila.DiasRestantes días
+                                    </span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (fila.Suscripcion.AlDia)
+                                {
+                                    <span class="distintivo distintivo--ok">Al día</span>
+                                }
+                                else
+                                {
+                                    <span class="distintivo distintivo--alerta">En mora</span>
+                                }
+                            </td>
+
+                            <td class="celda-acciones">
+                                @* Un solo botón que hace lo contrario de lo que ya
+                                   está: el texto dice a dónde va, no dónde está. *@
+                                @if (fila.Suscripcion.AlDia)
+                                {
+                                    <button type="button" class="btn btn--contorno btn--chico"
+                                            style="color: var(--rojo); border-color: var(--rojo);"
+                                            @onclick="() => Marcar(fila.Cliente.Id, false)">
+                                        En mora
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn--oscuro btn--chico"
+                                            @onclick="() => Marcar(fila.Cliente.Id, true)">
+                                        Al día
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private static readonly System.Globalization.CultureInfo Espanol = new("es-CO");
+
+    private string _mensaje = string.Empty;
+
+    private DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    /// <summary>
+    /// Una fila de la tabla: el cliente, su suscripción y cuántos días le
+    /// quedan. Es un record local porque solo tiene sentido en esta pantalla;
+    /// no es un concepto del dominio y no merece un archivo en Models.
+    /// </summary>
+    private record FilaPago(Cliente Cliente, Suscripcion Suscripcion, int DiasRestantes);
+
+    /// <summary>
+    /// Las filas ya ordenadas: primero los que están en mora y, dentro de cada
+    /// grupo, los de fecha más vencida arriba.
+    /// </summary>
+    private List<FilaPago> Filas
+    {
+        get
+        {
+            var filas = new List<FilaPago>();
+
+            foreach (var suscripcion in Datos.Suscripciones)
+            {
+                var cliente = Datos.BuscarCliente(suscripcion.ClienteId);
+
+                // Una suscripción cuyo cliente ya no existe no se puede mostrar.
+                // No debería pasar (al eliminar un cliente se borra su
+                // suscripción), pero la pantalla no se cae por eso.
+                if (cliente is null) continue;
+
+                var dias = suscripcion.FechaProximoPago.DayNumber - Hoy.DayNumber;
+                filas.Add(new FilaPago(cliente, suscripcion, dias));
+            }
+
+            return filas
+                .OrderBy(f => f.Suscripcion.AlDia)      // false (en mora) va primero
+                .ThenBy(f => f.DiasRestantes)           // lo más vencido, arriba
+                .ThenBy(f => f.Cliente.NombreCompleto)
+                .ToList();
+        }
+    }
+
+    private int EnMora => Datos.Suscripciones.Count(s => !s.AlDia);
+    private int AlDia => Datos.Suscripciones.Count(s => s.AlDia);
+
+    private void Marcar(int clienteId, bool alDia)
+    {
+        var resultado = Clientes.MarcarPago(clienteId, alDia);
+        _mensaje = resultado.Mensaje;
+    }
+}

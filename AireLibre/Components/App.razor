@@ -1,0 +1,63 @@
+@*
+    App.razor — Documento HTML raíz de toda la aplicación.
+
+    QUÉ HACE: es la única página HTML real del sitio. Define <head> y <body>,
+    carga la tipografía y la hoja de estilos, y monta el enrutador (Routes) con
+    el modo de render InteractiveServer.
+
+    NOTA IMPORTANTE: el @rendermode="InteractiveServer" de <Routes> es lo que
+    hace que TODOS los botones y formularios del sitio respondan. Sin él las
+    páginas se renderizan estáticas y los @onclick no hacen nada.
+
+    SOBRE EL PRERRENDERIZADO: queda ACTIVADO (es lo que trae InteractiveServer
+    por defecto). Cada página se dibuja dos veces: primero de forma estática al
+    responder la petición HTTP, y otra vez cuando se conecta el circuito. Eso
+    hace que la primera pantalla se vea de inmediato en vez de aparecer en
+    blanco mientras conecta.
+
+    Tiene una consecuencia que hay que conocer para el panel: los servicios
+    Scoped NO son los mismos en los dos dibujados, así que en el primero
+    SesionService está vacío aunque la persona sí tenga la sesión abierta. Cómo
+    se resuelve está explicado en PaginaPanel.cs, que es donde importa.
+*@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+
+    @*
+        Tipografía Archivo de Google Fonts.
+
+        Se pide la versión VARIABLE, con los tres ejes: cursiva (ital), anchura
+        (wdth, de 62 a 125) y grosor (wght, de 400 a 900).
+
+        El eje de ANCHURA es lo que permite los titulares condensados y pesados
+        de las secciones oscuras: en vez de traer otra familia estrecha, se
+        aprieta la misma Archivo con font-stretch (ver .titular-gigante en
+        app.css). Así el sitio sigue usando una sola tipografía, como pide el
+        enunciado, y aun así tiene dos voces distintas.
+    *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..900&display=swap" rel="stylesheet" />
+
+    @* Hoja de estilos propia. No se usa Bootstrap ni Tailwind. *@
+    <link rel="stylesheet" href="@Assets["css/app.css"]" />
+    <link rel="stylesheet" href="@Assets["AireLibre.styles.css"]" />
+
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

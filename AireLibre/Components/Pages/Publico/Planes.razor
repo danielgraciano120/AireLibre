@@ -1,0 +1,213 @@
+@*
+    Planes.razor — Vista 3: los planes y el formulario de solicitud (/planes).
+
+    QUÉ HACE: muestra los tres planes y un formulario que pide nombre completo,
+    tipo de documento, número de identificación y teléfono.
+
+    QUÉ PASA AL ENVIAR: NO se crea un cliente. Se crea una SolicitudPlan, que
+    queda pendiente para que el profesor la revise en /panel/solicitudes y
+    decida si la convierte en cliente. La razón está en SolicitudPlan.cs.
+
+    IMPORTANTE: aquí no se cobra nada. El precio que se ve es informativo; el
+    sitio no procesa dinero en ninguna parte.
+
+    CÓMO SE ELIGE EL PLAN: el botón de cada tarjeta selecciona ese plan en el
+    formulario y lleva el foco hasta allá. El formulario también tiene su propia
+    lista desplegable, para que funcione igual si alguien baja directamente sin
+    pulsar ninguna tarjeta.
+*@
+@page "/planes"
+@inject ClienteService Clientes
+@inject DatosService Datos
+
+<PageTitle>Planes — STRONGBODY</PageTitle>
+
+@* ---------------------------------------------------------------------------
+   LOS TRES PLANES
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+
+        <span class="eyebrow">Planes</span>
+        <h1>Escoge cada cuánto entrenas</h1>
+        <p>
+            Los tres planes dan acceso a cualquiera de los tres horarios. No hay
+            permanencia ni matrícula: cuando se acaba, decides si sigues.
+        </p>
+
+        <div class="grid grid-3" style="margin-top: 2rem;">
+            @foreach (var plan in Datos.Planes)
+            {
+                <div class="tarjeta @(plan.Id == _planId ? "tarjeta--manana" : "")">
+                    <span class="eyebrow">Plan @plan.Nombre</span>
+
+                    <p class="contador-numero" style="font-size: 2rem; margin: 0 0 0.15rem;">
+                        $@plan.Precio.ToString("N0")
+                    </p>
+                    <p class="texto-secundario texto-chico">
+                        @(plan.DiasDuracion == 1 ? "una clase" : $"{plan.DiasDuracion} días")
+                    </p>
+
+                    <p>@plan.Descripcion</p>
+
+                    <button type="button"
+                            class="btn @(plan.Id == _planId ? "btn--oscuro" : "btn--contorno")"
+                            @onclick="() => ElegirPlan(plan.Id)">
+                        @(plan.Id == _planId ? "Plan seleccionado" : "Solicitar este plan")
+                    </button>
+                </div>
+            }
+        </div>
+
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   FORMULARIO DE SOLICITUD
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+        <div class="grid grid-2">
+
+            <div>
+                <span class="eyebrow">Solicitud</span>
+                <h2>Déjanos tus datos</h2>
+                <p>
+                    El profesor te contacta para cuadrar el pago y tu primera
+                    clase. Aquí no se paga nada: el sitio solo recibe la
+                    solicitud.
+                </p>
+                <p class="texto-secundario texto-chico">
+                    ¿Prefieres probar antes? Puedes
+                    <a href="grupos">separar un cupo</a> sin dejar ningún dato
+                    más que tu nombre.
+                </p>
+            </div>
+
+            <div class="tarjeta">
+
+                @* Resultado del último envío. role="status" hace que un lector
+                   de pantalla lo anuncie sin que la persona tenga que buscarlo. *@
+                @if (!string.IsNullOrEmpty(_mensaje))
+                {
+                    <div class="aviso @(_envioExitoso ? "" : "aviso--error")" role="status">
+                        <p>@_mensaje</p>
+                    </div>
+                }
+
+                <form @onsubmit="Enviar" @onsubmit:preventDefault="true">
+
+                    <div class="campo">
+                        <label for="plan">Plan</label>
+                        <select id="plan" @bind="_planId">
+                            @foreach (var plan in Datos.Planes)
+                            {
+                                <option value="@plan.Id">@plan.Nombre</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="campo">
+                        <label for="nombre">Nombre completo</label>
+                        <input id="nombre" type="text" autocomplete="name"
+                               placeholder="Nombre y apellido"
+                               @ref="_campoNombre"
+                               @bind="_nombreCompleto" @bind:event="oninput" />
+                    </div>
+
+                    <div class="formulario-grid">
+                        <div class="campo">
+                            <label for="tipo-doc">Tipo de documento</label>
+                            <select id="tipo-doc" @bind="_tipoDocumento">
+                                <option value="@TipoDocumento.Cedula">Cédula</option>
+                                <option value="@TipoDocumento.TarjetaIdentidad">Tarjeta de identidad</option>
+                            </select>
+                        </div>
+
+                        <div class="campo">
+                            <label for="documento">Número de identificación</label>
+                            <input id="documento" type="text" inputmode="numeric"
+                                   placeholder="Solo números"
+                                   @bind="_numeroIdentificacion" @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="campo">
+                        <label for="telefono">Teléfono</label>
+                        <input id="telefono" type="tel" autocomplete="tel"
+                               placeholder="310 364 0944"
+                               @bind="_telefono" @bind:event="oninput" />
+                    </div>
+
+                    <button type="submit" class="btn btn--primario">Enviar solicitud</button>
+                </form>
+
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@code {
+    // --- Campos del formulario ----------------------------------------------
+
+    private int _planId = 3;   // arranca en Mensual, que es el más pedido
+    private string _nombreCompleto = string.Empty;
+    private TipoDocumento _tipoDocumento = TipoDocumento.Cedula;
+    private string _numeroIdentificacion = string.Empty;
+    private string _telefono = string.Empty;
+
+    // --- Resultado del envío -------------------------------------------------
+
+    private string _mensaje = string.Empty;
+    private bool _envioExitoso;
+
+    // Referencia al campo del nombre, para llevarle el foco cuando la persona
+    // elige un plan desde las tarjetas de arriba.
+    private ElementReference _campoNombre;
+
+    // Se enciende cuando hay que mover el foco después del siguiente render.
+    private bool _moverFocoAlNombre;
+
+    /// <summary>
+    /// Selecciona el plan pulsado en las tarjetas y pide que el foco baje al
+    /// formulario, para que la persona siga escribiendo sin buscar dónde.
+    /// </summary>
+    private void ElegirPlan(int planId)
+    {
+        _planId = planId;
+        _moverFocoAlNombre = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primerRender)
+    {
+        if (_moverFocoAlNombre)
+        {
+            _moverFocoAlNombre = false;
+            await _campoNombre.FocusAsync();
+        }
+    }
+
+    /// <summary>
+    /// Manda los datos a ClienteService, que es quien valida y decide. Esta
+    /// vista no comprueba nada por su cuenta: solo muestra lo que le responden.
+    /// </summary>
+    private void Enviar()
+    {
+        var resultado = Clientes.RegistrarSolicitud(
+            _nombreCompleto, _tipoDocumento, _numeroIdentificacion, _telefono, _planId);
+
+        _mensaje = resultado.Mensaje;
+        _envioExitoso = resultado.Exito;
+
+        // Si salió bien se limpia el formulario, para que no quede la sensación
+        // de que hay que volver a enviarlo.
+        if (resultado.Exito)
+        {
+            _nombreCompleto = string.Empty;
+            _numeroIdentificacion = string.Empty;
+            _telefono = string.Empty;
+            _tipoDocumento = TipoDocumento.Cedula;
+        }
+    }
+}

@@ -1,0 +1,1115 @@
+/* ============================================================================
+   app.css — Hoja de estilos única del sitio "Aire Libre".
+   ----------------------------------------------------------------------------
+   QUÉ ES: todo el diseño visual del sitio, escrito a mano. No se usa Bootstrap
+   ni Tailwind (requisito del proyecto), así que este archivo es la única fuente
+   de verdad de colores, tipografía, espaciados y componentes.
+
+   CÓMO SE USA: se enlaza una sola vez en Components/App.razor. Las vistas y
+   componentes solo aplican clases; no llevan estilos propios embebidos.
+
+   ORGANIZACIÓN (en este orden, no reordenar: el orden define la cascada):
+     1. Variables de diseño (paleta, tipografía, medidas)
+     2. Reinicio y bases
+     3. Tipografía
+     4. Estructura de página (sitio público y panel)
+     5. Componentes: tarjetas, botones, formularios, tablas, modal, avisos
+     6. Inicio: portada y secciones oscuras de impacto
+     7. Medidor de cupos (el detalle visual característico del sitio)
+     8. Responsive y accesibilidad
+
+   NOTAS DE DISEÑO:
+     - PALETA: rojo, blanco y negro. Es la del logo de STRONGBODY.
+     - Rojo = grupo de la mañana, Grafito = grupos de la noche. El color
+       codifica información del dominio, no es decoración: las clases se llaman
+       --manana / --noche y se usan igual en todas las vistas.
+     - Las clases de estado se llaman por SIGNIFICADO y no por color
+       (--ok, --alerta, --noche, --neutro). Así, cambiar la paleta no obliga a
+       renombrar clases en las 12 vistas, que fue justo lo que pasó al pasar
+       del verde y naranja anteriores a esta paleta.
+     - Los números (cupos, contadores, cantidades) usan cifras tabulares para
+       que las columnas queden alineadas.
+     - Los radios de borde nunca pasan de 5px (requisito del diseño).
+============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   1. VARIABLES DE DISEÑO
+   Cambiar un color aquí lo cambia en todo el sitio.
+--------------------------------------------------------------------------- */
+:root {
+    /*
+       PALETA: rojo, blanco y negro. Es la del logo de STRONGBODY (llanta
+       negra, texto blanco, pesas rusas rojas).
+
+       Solo hay tres colores de verdad. El gris y el grafito no son colores
+       nuevos: son negro rebajado, y existen para tener jerarquía sin meter
+       una cuarta familia.
+    */
+    --negro: #101013;          /* fondos oscuros y texto principal */
+    --negro-profundo: #000000; /* fondo de las secciones de impacto */
+    --grafito: #33333A;        /* superficies oscuras secundarias · grupo de la noche */
+    --rojo: #D8232A;           /* el acento: botones, alertas y grupo de la mañana */
+    --rojo-oscuro: #A5151B;    /* hover del botón rojo y grupo lleno */
+    --blanco: #FFFFFF;         /* fondo de tarjetas */
+    --hueso: #F4F4F5;          /* fondo de página */
+    --gris: #6E6E73;           /* texto secundario */
+
+    /* Derivados: solo transparencias de la paleta, sin colores nuevos */
+    --linea: rgba(0, 0, 0, 0.12);      /* reglas finas y bordes */
+    --linea-fuerte: rgba(0, 0, 0, 0.26);
+    --rojo-tenue: rgba(216, 35, 42, 0.10);
+    --grafito-tenue: rgba(51, 51, 58, 0.09);
+    --gris-tenue: rgba(110, 110, 115, 0.10);
+
+    /* Tinte que se aplica ENCIMA de toda fotografía. Es lo que hace que fotos
+       de origen distinto se vean como un conjunto y no como un collage.
+       Va aparte del velo de .ficha::before, que es el que asegura la lectura. */
+    --tinte-foto: linear-gradient(175deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.48));
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+
+    /* Tipografía */
+    --fuente: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Medidas */
+    --radio: 4px;              /* radio estándar (rango permitido: 3-5px) */
+    --radio-chico: 3px;
+    --radio-grande: 5px;
+    --ancho-max: 1180px;
+}
+
+/* ---------------------------------------------------------------------------
+   2. REINICIO Y BASES
+--------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    background-color: var(--hueso);
+    color: var(--negro);
+    font-family: var(--fuente);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+img, svg { max-width: 100%; display: block; }
+
+/* Todos los números del sitio se alinean en columna */
+table, .contador-numero, .cupo-texto, .celda-numero {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   3. TIPOGRAFÍA
+--------------------------------------------------------------------------- */
+h1, h2, h3, h4 {
+    margin: 0 0 0.5em;
+    letter-spacing: -0.02em;   /* requisito del diseño */
+    line-height: 1.1;
+    text-wrap: balance;
+}
+
+h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); font-weight: 900; }
+h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; }
+h3 { font-size: 1.15rem; font-weight: 800; }
+h4 { font-size: 1rem; font-weight: 600; }
+
+p { margin: 0 0 1em; max-width: 68ch; }
+
+a { color: var(--rojo); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--rojo-oscuro); }
+
+/* Etiqueta pequeña en mayúsculas: el contrapunto al tracking negativo de los
+   títulos. Rotula secciones, columnas y estados. */
+.eyebrow {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gris);
+    margin-bottom: 0.6rem;
+}
+
+.texto-secundario { color: var(--gris); }
+.texto-chico { font-size: 0.85rem; }
+
+/* ---------------------------------------------------------------------------
+   4. ESTRUCTURA DE PÁGINA
+--------------------------------------------------------------------------- */
+.contenedor {
+    width: 100%;
+    max-width: var(--ancho-max);
+    margin: 0 auto;
+    padding: 0 1.25rem;
+}
+
+.seccion { padding: 3.5rem 0; }
+.seccion + .seccion { border-top: 1px solid var(--linea); }
+
+/* --- Cabecera del sitio público --- */
+.sitio-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: var(--negro);
+    color: var(--hueso);
+}
+
+.sitio-header .contenedor {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-height: 64px;
+}
+
+.marca {
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    color: var(--hueso);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.marca:hover { color: var(--blanco); }
+
+/*
+   El logo de STRONGBODY. Tiene fondo transparente, así que se apoya sobre el
+   negro de la cabecera sin recuadro. Se le fija SOLO el alto: el ancho va en
+   automático para que nunca se deforme, sea cual sea la imagen que se ponga.
+*/
+.marca-logo {
+    height: 46px;
+    width: auto;
+    display: block;
+}
+
+.sitio-nav {
+    display: flex;
+    gap: 0.35rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.sitio-nav a {
+    color: var(--hueso);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: var(--radio-chico);
+}
+.sitio-nav a:hover { background-color: rgba(255, 255, 255, 0.12); color: var(--blanco); }
+.sitio-nav a.active { background-color: var(--rojo); color: var(--blanco); }
+
+/* --- Pie del sitio público --- */
+.sitio-footer {
+    background-color: var(--negro);
+    color: var(--hueso);
+    padding: 2.5rem 0 1.5rem;
+    margin-top: 2rem;
+}
+.sitio-footer h3 { color: var(--blanco); }
+.sitio-footer a { color: var(--hueso); }
+.sitio-footer a:hover { color: var(--rojo-oscuro); }
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+}
+
+.redes { display: flex; gap: 0.6rem; margin-top: 0.75rem; }
+
+.red {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radio);
+    color: var(--hueso);
+}
+.red:hover { background-color: var(--rojo); border-color: var(--rojo); color: var(--blanco); }
+.red svg { width: 20px; height: 20px; }
+
+.telefono-grande {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--blanco);
+    text-decoration: none;
+}
+
+/* --- Estructura del panel de administración --- */
+.panel { display: flex; min-height: 100vh; }
+
+.panel-aside {
+    width: 232px;
+    flex-shrink: 0;
+    background-color: var(--negro);
+    color: var(--hueso);
+    padding: 1.25rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.panel-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.panel-nav a {
+    display: block;
+    color: var(--hueso);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--radio-chico);
+    border-left: 3px solid transparent;
+}
+.panel-nav a:hover { background-color: rgba(255, 255, 255, 0.12); }
+.panel-nav a.active {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-left-color: var(--rojo);
+    color: var(--blanco);
+}
+
+.panel-main { flex: 1; min-width: 0; padding: 2rem 1.75rem 4rem; }
+
+.panel-titulo {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-bottom: 1rem;
+    margin-bottom: 1.75rem;
+    border-bottom: 2px solid var(--negro);
+}
+.panel-titulo h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); margin: 0; }
+
+.usuario-sesion { font-size: 0.85rem; color: rgba(255, 255, 255, 0.75); }
+.usuario-sesion strong { color: var(--blanco); display: block; font-size: 0.95rem; }
+
+/* Rejillas reutilizables */
+.grid { display: grid; gap: 1.25rem; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* ---------------------------------------------------------------------------
+   5. COMPONENTES
+--------------------------------------------------------------------------- */
+
+/* --- Tarjeta: la caja blanca base de todo el sitio --- */
+.tarjeta {
+    background-color: var(--blanco);
+    border: 1px solid var(--linea);
+    border-radius: var(--radio-grande);
+    padding: 1.35rem;
+    box-shadow: var(--sombra);
+}
+
+/* Banda superior de color que identifica mañana / noche */
+/* La banda superior dice de qué grupo es la tarjeta: rojo mañana, grafito noche */
+.tarjeta--manana { border-top: 4px solid var(--rojo); }
+.tarjeta--noche { border-top: 4px solid var(--grafito); }
+
+/* --- Contador del resumen del panel --- */
+.contador { display: flex; flex-direction: column; gap: 0.15rem; }
+.contador-numero {
+    font-size: 2.8rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+.contador--alerta .contador-numero { color: var(--rojo); }
+.contador-etiqueta { font-size: 0.9rem; font-weight: 600; color: var(--gris); }
+
+/* --- Botones --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+    padding: 0.65rem 1.15rem;
+    border: 1px solid transparent;
+    border-radius: var(--radio);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.btn--primario { background-color: var(--rojo); color: var(--blanco); }
+.btn--primario:hover:not(:disabled) { background-color: var(--rojo-oscuro); color: var(--blanco); }
+
+.btn--oscuro { background-color: var(--negro); color: var(--hueso); }
+.btn--oscuro:hover:not(:disabled) { background-color: var(--rojo); color: var(--blanco); }
+
+.btn--contorno { background-color: transparent; color: var(--negro); border-color: var(--linea-fuerte); }
+.btn--contorno:hover:not(:disabled) { border-color: var(--negro); background-color: var(--gris-tenue); color: var(--negro); }
+
+.btn--chico { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-fila { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+/* --- Formularios --- */
+.campo { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+
+.campo label { font-size: 0.85rem; font-weight: 600; }
+
+.campo input, .campo select, .campo textarea {
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--negro);
+    background-color: var(--blanco);
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: var(--radio-chico);
+    width: 100%;
+}
+.campo input:hover, .campo select:hover { border-color: var(--rojo); }
+
+.campo-error { color: var(--rojo); font-size: 0.8rem; font-weight: 600; }
+
+.formulario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 1rem; }
+
+/* --- Tablas --- */
+.tabla-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio-grande);
+    background-color: var(--blanco);
+}
+
+table.tabla { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+table.tabla th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gris);
+    padding: 0.75rem 0.9rem;
+    border-bottom: 1px solid var(--linea-fuerte);
+    white-space: nowrap;
+}
+
+table.tabla td { padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--linea); vertical-align: middle; }
+table.tabla tbody tr:last-child td { border-bottom: none; }
+table.tabla tbody tr:hover { background-color: var(--gris-tenue); }
+
+.celda-numero { text-align: right; }
+.celda-acciones { text-align: right; white-space: nowrap; }
+
+/* --- Distintivos de estado --- */
+.distintivo {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radio-chico);
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+/*
+   Los nombres son SEMÁNTICOS, no de color: --ok, --alerta, --noche, --neutro.
+   Antes se llamaban por su color (--verde, --naranja) y al cambiar la paleta
+   quedaron mintiendo: una clase llamada "verde" pintando de rojo. Con nombres
+   por significado, cambiar la paleta no obliga a tocar ninguna vista.
+*/
+.distintivo--ok     { background-color: var(--negro); color: var(--blanco); border-color: var(--negro); }
+.distintivo--alerta { background-color: var(--rojo-tenue); color: var(--rojo-oscuro); border-color: var(--rojo); }
+.distintivo--noche  { background-color: var(--grafito-tenue); color: var(--grafito); border-color: var(--grafito); }
+.distintivo--neutro { background-color: var(--gris-tenue); color: var(--gris); border-color: var(--linea-fuerte); }
+
+/* --- Avisos (mensajes de resultado y alertas) --- */
+.aviso {
+    /* El aviso de confirmación va en negro y el de error en rojo. Si los dos
+       fueran rojos no se distinguiría "salió bien" de "salió mal". */
+    border-left: 3px solid var(--negro);
+    background-color: var(--gris-tenue);
+    padding: 0.8rem 1rem;
+    border-radius: var(--radio-chico);
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+.aviso--error { border-left-color: var(--rojo); background-color: var(--rojo-tenue); }
+.aviso p:last-child { margin-bottom: 0; }
+
+/* --- Estado vacío --- */
+.vacio {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--gris);
+    border: 1px dashed var(--linea-fuerte);
+    border-radius: var(--radio-grande);
+}
+.vacio p { margin-left: auto; margin-right: auto; }
+
+/* --- Modal --- */
+.modal-fondo {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    z-index: 50;
+}
+
+.modal-caja {
+    background-color: var(--blanco);
+    border-radius: var(--radio-grande);
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.5);
+}
+.modal-caja--ancho { max-width: 640px; }
+
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.15rem 1.35rem;
+    border-bottom: 1px solid var(--linea);
+}
+.modal-header h3 { margin: 0; }
+
+.modal-cerrar {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radio-chico);
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--gris);
+    cursor: pointer;
+    padding: 0.15rem 0.45rem;
+    font-family: inherit;
+}
+.modal-cerrar:hover { color: var(--rojo); border-color: var(--linea-fuerte); }
+
+.modal-cuerpo { padding: 1.35rem; }
+.modal-pie {
+    padding: 1rem 1.35rem;
+    border-top: 1px solid var(--linea);
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* --- Imágenes marcador de posición (bloques con degradado) --- */
+.imagen-marcador {
+    border-radius: var(--radio-grande);
+    min-height: 220px;
+    display: flex;
+    align-items: flex-end;
+    padding: 1.25rem;
+    color: var(--hueso);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    background-image: linear-gradient(135deg, var(--negro), var(--rojo-oscuro));
+}
+.imagen-marcador--noche { background-image: linear-gradient(135deg, var(--grafito), #000000); }
+.imagen-marcador--calido { background-image: linear-gradient(135deg, var(--rojo), #000000); }
+.imagen-marcador--alta { min-height: 380px; }
+
+/* ---------------------------------------------------------------------------
+   6. INICIO: PORTADA Y SECCIONES DE IMPACTO
+
+   Los estilos de la página de inicio, que está armada como una ficha de sede
+   de gimnasio: portada a sangre, datos duros, lo que se encuentra, horarios,
+   dónde queda y cierre.
+
+   Van aparte de los componentes (bloque 5) porque no se reutilizan en ninguna
+   otra pantalla: solo existen aquí.
+--------------------------------------------------------------------------- */
+
+/* --- Portada: ocupa todo el ancho, ignorando el contenedor --- */
+.portada {
+    position: relative;
+    background-color: var(--negro);
+    color: var(--hueso);
+    overflow: hidden;
+
+    background-size: cover;
+    background-position: center 35%;
+
+    /*
+       Foto de portada, con el velo oscuro ENCIMA.
+
+       El orden importa: en CSS la primera capa de background-image queda
+       arriba. Los degradados van primero y la foto de último, así que el velo
+       cae sobre la foto y no al revés. Eso es lo que garantiza que el título
+       blanco se lea sin importar qué tan clara sea la fotografía.
+
+       Si el archivo no existe, el navegador ignora esa capa y se ven solo los
+       degradados: el marcador de posición que trae el sitio de fábrica. Por
+       eso no se rompe nada mientras no haya foto (ver wwwroot/img/LEEME.txt).
+    */
+    background-image:
+        radial-gradient(ellipse at 78% 15%, rgba(216, 35, 42, 0.30), transparent 58%),
+        linear-gradient(100deg, rgba(0, 0, 0, 0.93) 10%, rgba(0, 0, 0, 0.70) 58%, rgba(0, 0, 0, 0.88)),
+        url("../img/portada-grupo.jpg");
+}
+
+/* NOTA: aquí había una trama de líneas verticales sobre la portada. Se quitó
+   a pedido de Camila Loaiza (2026-09-06): sobre una fotografía real ensuciaba
+   la imagen en vez de aportar. El medidor de cupos sigue siendo el gesto
+   característico del sitio, pero solo donde significa algo. */
+
+.portada .contenedor {
+    position: relative;
+    z-index: 1;
+    padding-top: 4.5rem;
+    padding-bottom: 3rem;
+}
+
+.portada h1 {
+    color: var(--blanco);
+    max-width: 15ch;
+    margin-bottom: 1rem;
+    font-size: clamp(2.6rem, 7vw, 4.8rem);
+}
+
+.portada p { color: rgba(255, 255, 255, 0.82); max-width: 52ch; }
+
+.portada .eyebrow { color: var(--rojo); }
+
+/* Ubicación bajo el título, con el punto de color delante */
+.portada-lugar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+}
+.portada-lugar::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--rojo);
+    flex-shrink: 0;
+}
+
+/* --- Franja de datos duros bajo la portada --- */
+.franja-datos {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.franja-datos .contenedor {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.dato-fuerte {
+    padding: 1.4rem 0.25rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dato-fuerte:last-child { border-right: none; }
+
+.dato-fuerte-numero {
+    display: block;
+    font-size: 2.1rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--blanco);
+    font-variant-numeric: tabular-nums;
+}
+
+.dato-fuerte-etiqueta {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* --- Lista de lo que se encuentra --- */
+.lista-beneficios {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.85rem 2rem;
+}
+
+.lista-beneficios li {
+    position: relative;
+    padding-left: 1.4rem;
+    line-height: 1.5;
+}
+
+/* La viñeta es una marca vertical, igual que las del medidor de cupos. */
+.lista-beneficios li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.45em;
+    width: 4px;
+    height: 0.85em;
+    border-radius: 1px;
+    background-color: var(--rojo);
+}
+
+/* --- Horarios de la portada --- */
+.horario-fila {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--linea);
+}
+.horario-fila:last-child { border-bottom: none; }
+
+.horario-hora {
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    min-width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.horario-datos { flex: 1 1 260px; min-width: 0; }
+
+/* Barra de color a la izquierda que dice si es mañana o noche */
+.horario-fila--manana .horario-hora { color: var(--rojo); }
+.horario-fila--noche .horario-hora { color: var(--grafito); }
+
+/* --- Dónde entrenamos --- */
+.mapa-marcador {
+    border-radius: var(--radio-grande);
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--hueso);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    background-color: var(--negro);
+    background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 34px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 34px),
+        linear-gradient(135deg, #000000, var(--grafito));
+}
+
+/* --- Cierre a sangre --- */
+.cierre {
+    background-color: var(--negro);
+    color: var(--hueso);
+    text-align: center;
+    background-image: linear-gradient(135deg, #000000, #2E0A0D);
+}
+.cierre h2 { color: var(--blanco); }
+.cierre p { color: rgba(255, 255, 255, 0.8); margin-left: auto; margin-right: auto; }
+
+/* --- Responsive de la portada --- */
+@media (max-width: 640px) {
+    .portada .contenedor { padding-top: 2.75rem; padding-bottom: 2rem; }
+    .dato-fuerte { padding: 1.1rem 0.25rem; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.14); }
+    .dato-fuerte:last-child { border-bottom: none; }
+    .horario-hora { min-width: 100%; }
+}
+
+
+/* ---------------------------------------------------------------------------
+   SECCIONES OSCURAS DE IMPACTO
+
+   El lenguaje visual que pidió Camila Loaiza a partir de dos capturas de
+   referencia: fondo casi negro, titular gigante en mayúsculas condensadas,
+   antetítulo centrado con mucho espaciado, y tarjetas verticales con la foto
+   en duotono y el texto encima.
+
+   LO QUE SE TOMÓ DE LA REFERENCIA: la composición (centrada), la escala del
+   titular, la tipografía condensada pesada, el formato vertical de las
+   tarjetas y el tratamiento de la foto en duotono.
+
+   LO QUE NO: los colores. La referencia es vinotinto y rojo; aquí se usa la
+   paleta del proyecto (verde oscuro y naranja), que el enunciado fija. Cambiar
+   a otra paleta sería editar las siete variables del bloque 1.
+--------------------------------------------------------------------------- */
+
+/* --- Fondo oscuro a sangre --- */
+.seccion--oscura {
+    background-color: var(--negro-profundo);
+    color: var(--hueso);
+    background-image: linear-gradient(180deg, #000000, var(--negro) 55%, #1A1A1E);
+}
+
+/* Variante con el degradado tirando al acento, para alternar entre secciones
+   oscuras seguidas y que no se vean como una sola mancha. */
+.seccion--oscura-calida {
+    background-image: linear-gradient(180deg, #000000 10%, #16161A 55%, #2E0A0D);
+}
+
+.seccion--oscura h2,
+.seccion--oscura h3 { color: var(--blanco); }
+
+.seccion--oscura p { color: rgba(255, 255, 255, 0.78); }
+
+.seccion--centrada { text-align: center; }
+.seccion--centrada p { margin-left: auto; margin-right: auto; }
+
+/* --- Antetítulo centrado, muy espaciado --- */
+.eyebrow--grande {
+    font-size: 0.8rem;
+    letter-spacing: 0.34em;
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 0.35rem;
+    /* El espaciado se aplica también al último carácter, así que sin esto el
+       texto queda descentrado hacia la izquierda. */
+    text-indent: 0.34em;
+}
+
+/*
+   --- Titular gigante ---
+
+   Es la pieza que define estas secciones. Usa el eje de ANCHURA de Archivo
+   (font-stretch: 62%) para apretar la letra, que es lo que le da el aire de
+   tipografía deportiva sin cambiar de familia. Ver el comentario del <link>
+   de la fuente en App.razor.
+
+   El clamp llega hasta 7rem: el titular tiene que leerse como un cartel, no
+   como un encabezado más.
+*/
+.titular-gigante {
+    font-size: clamp(2.8rem, 9vw, 7rem);
+    font-weight: 900;
+    font-stretch: 62%;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    line-height: 0.92;
+    margin: 0 0 2.5rem;
+    color: var(--blanco);
+}
+
+/* Cuando el titular va en color de acento, como el "PLANES" de la referencia */
+.titular-gigante--acento { color: var(--rojo); }
+
+/* --- Rejilla de tarjetas verticales --- */
+.rejilla-fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1.25rem;
+    text-align: left;
+}
+
+/*
+   --- Ficha vertical con foto ---
+
+   El formato es vertical (2:3) porque así son las de la referencia y porque
+   una foto de cuerpo entero pide alto, no ancho.
+
+   El fondo es el marcador de posición de la foto: un degradado en duotono.
+   Cuando haya fotos reales se cambia por
+       background-image: linear-gradient(...), url("...");
+   dejando el degradado ENCIMA, que es lo que mantiene el texto legible sobre
+   cualquier foto.
+*/
+.ficha {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    min-height: 320px;
+    border-radius: var(--radio-grande);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem 1.35rem;
+    background-color: var(--negro);
+    background-size: cover;
+    background-position: center;
+    color: var(--hueso);
+}
+
+/* Velo oscuro de abajo hacia arriba: es lo que garantiza que el texto se lea
+   por encima de la foto, sin depender de qué tan clara sea. */
+.ficha::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(180deg, transparent 25%, rgba(0, 0, 0, 0.85) 78%);
+}
+
+.ficha > * { position: relative; z-index: 1; }
+
+/* Las cuatro variantes de duotono, para que las fichas de una misma fila no
+   se vean idénticas. Alternan verde y naranja sobre el verde oscuro. */
+.ficha--a { background-image: linear-gradient(150deg, #3A0B0E, #000000 72%); }
+.ficha--b { background-image: linear-gradient(150deg, #2A2A30, #000000 72%); }
+.ficha--c { background-image: linear-gradient(150deg, #6E1015, #000000 75%); }
+.ficha--d { background-image: linear-gradient(150deg, #D8232A, #000000 78%); }
+
+/* Texto en dos líneas: la primera normal, la segunda cursiva y más grande.
+   Es el remate de las fichas de la referencia. */
+.ficha-linea1 {
+    display: block;
+    font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+    font-weight: 800;
+    font-stretch: 68%;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--blanco);
+}
+
+.ficha-linea2 {
+    display: block;
+    font-size: clamp(1.5rem, 3.4vw, 2.3rem);
+    font-weight: 900;
+    font-stretch: 68%;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin-top: 0.15rem;
+    color: var(--blanco);
+}
+
+
+/* --- Fichas con fotografía real ---------------------------------------
+   Mismo velo que la portada: los degradados van primero (quedan encima) y la
+   foto de último. Si el archivo falta, se ve solo el degradado.
+   Los nombres de archivo están documentados en wwwroot/img/LEEME.txt.
+------------------------------------------------------------------------- */
+.ficha--ancha { aspect-ratio: 4 / 3; }
+
+/*
+   Cada variante declara sus DOS capas juntas, porque background-image no se
+   hereda por partes: si una clase lo redeclara, reemplaza la lista completa.
+   Por eso el tinte se guarda en la variable --tinte-foto y se repite aquí,
+   en vez de intentar ponerlo una sola vez en una clase compartida.
+
+   Recordatorio del orden: primero el tinte, de último la url(). En CSS la
+   primera capa queda ARRIBA.
+*/
+
+/* Fotos de la sección "Así se ve una clase" */
+.ficha--foto-balon { background-image: var(--tinte-foto), url("../img/balon-medicinal.jpg"); }
+.ficha--foto-barra { background-image: var(--tinte-foto), url("../img/peso-muerto.jpg"); }
+
+/* Fotos de los cuatro objetivos, en "Con nosotros conseguirás".
+   El nombre de cada clase corresponde a un valor de la enumeración Objetivo
+   (ver Enumeraciones.cs); el emparejamiento se hace en Inicio.razor. */
+.ficha--foto-volumen     { background-image: var(--tinte-foto), url("../img/volumen.jpg"); }
+.ficha--foto-definicion  { background-image: var(--tinte-foto), url("../img/bajar-grasa.jpg"); }
+.ficha--foto-tonificar   { background-image: var(--tinte-foto), url("../img/tonificada.jpg"); }
+.ficha--foto-salud       { background-image: var(--tinte-foto), url("../img/salud-vitalidad.jpg"); }
+
+/* Rótulo de la foto, abajo a la izquierda */
+.ficha-rotulo {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* --- Ficha de plan: misma pieza, pero con precio, texto y botón --- */
+.ficha--plan {
+    aspect-ratio: auto;
+    min-height: 360px;
+    justify-content: flex-end;
+    text-align: center;
+    align-items: center;
+    padding: 2rem 1.5rem;
+}
+
+.ficha--plan::before {
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.88));
+}
+
+.ficha-titulo {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 900;
+    font-stretch: 62%;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin: 0 0 0.35rem;
+    color: var(--blanco);
+}
+
+.ficha-precio {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--rojo);
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 0.75rem;
+}
+
+.ficha-texto {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.82);
+    margin: 0 0 1.25rem;
+    max-width: 30ch;
+}
+
+/* --- Quiénes somos --- */
+.quienes-somos-entrada {
+    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--blanco);
+    max-width: 26ch;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .titular-gigante { margin-bottom: 1.75rem; }
+    .eyebrow--grande { letter-spacing: 0.22em; text-indent: 0.22em; }
+    .ficha { min-height: 260px; aspect-ratio: 3 / 4; }
+    .ficha--plan { aspect-ratio: auto; min-height: 300px; }
+}
+
+/* ---------------------------------------------------------------------------
+   7. MEDIDOR DE CUPOS — el detalle visual característico del sitio.
+   Una fila de 20 marcas verticales (una por cupo): las ocupadas en verde
+   oscuro sólido, las libres en gris claro. Es un conteo literal, no una barra
+   de progreso: se puede contar con el dedo cuántos cupos quedan.
+--------------------------------------------------------------------------- */
+.cupos { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.cupos-marcas { display: flex; gap: 3px; align-items: flex-end; }
+
+.marca-cupo {
+    flex: 1 1 0;
+    min-width: 4px;
+    height: 34px;
+    border-radius: 1px;
+    background-color: rgba(110, 110, 115, 0.22);   /* cupo libre: gris claro */
+}
+
+.marca-cupo--ocupada { background-color: var(--negro); }   /* cupo tomado */
+
+/* En los grupos de la noche las marcas ocupadas usan el azul del dominio */
+.cupos--noche .marca-cupo--ocupada { background-color: var(--grafito); }
+
+/* Sin cupos: rojo oscuro. No puede ser el rojo normal, que es el color del
+   grupo de la mañana; se confundiría "es de mañana" con "está lleno". */
+.cupos--lleno .marca-cupo--ocupada { background-color: var(--rojo-oscuro); }
+
+.cupo-texto { font-size: 0.85rem; font-weight: 600; color: var(--gris); }
+.cupo-texto strong { color: var(--negro); font-size: 1rem; }
+
+/* ---------------------------------------------------------------------------
+   8. RESPONSIVE Y ACCESIBILIDAD
+--------------------------------------------------------------------------- */
+
+/* Foco visible con teclado en todo elemento interactivo */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid var(--rojo);
+    outline-offset: 2px;
+    border-radius: var(--radio-chico);
+}
+/*
+   El enrutador le da el foco al <h1> en cada navegación (FocusOnNavigate en
+   Routes.razor) para que un lector de pantalla anuncie la página nueva. Eso
+   dibujaba un recuadro alrededor del título en cada carga. Se quita SOLO en
+   ese caso: es foco puesto por código, no por el teclado, así que nadie lo
+   necesita ver. Todo lo demás conserva su indicador.
+*/
+h1:focus, h1:focus-visible { outline: none; }
+
+/* Sobre fondo oscuro el foco se marca en blanco para que contraste */
+.sitio-header a:focus-visible,
+.panel-aside a:focus-visible,
+.sitio-footer a:focus-visible {
+    outline-color: var(--blanco);
+}
+
+/* Enlace para saltar al contenido (lectores de pantalla y teclado) */
+.salto-contenido {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background-color: var(--rojo);
+    color: var(--blanco);
+    padding: 0.6rem 1rem;
+    font-weight: 700;
+    z-index: 100;
+    border-radius: 0 0 var(--radio) 0;
+}
+.salto-contenido:focus { left: 0; }
+
+/* Solo para lectores de pantalla */
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 900px) {
+    /* El panel pasa de barra lateral a barra superior */
+    .panel { flex-direction: column; }
+    .panel-aside { width: 100%; }
+    .panel-nav { flex-direction: row; flex-wrap: wrap; }
+    .panel-nav a { border-left: none; border-bottom: 3px solid transparent; }
+    .panel-nav a.active { border-left: none; border-bottom-color: var(--rojo); }
+    .panel-main { padding: 1.5rem 1.1rem 3rem; }
+}
+
+@media (max-width: 640px) {
+    .seccion { padding: 2.25rem 0; }
+    .sitio-header .contenedor { flex-wrap: wrap; padding-top: 0.6rem; padding-bottom: 0.6rem; }
+    .sitio-nav { margin-left: 0; width: 100%; }
+    .sitio-nav a { padding: 0.4rem 0.6rem; }
+    .tarjeta { padding: 1.1rem; }
+    .marca-cupo { height: 26px; }
+    .modal-pie { flex-direction: column-reverse; }
+    .modal-pie .btn { width: 100%; }
+}
+
+/* Respetar la preferencia de movimiento reducido del sistema */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -1,0 +1,469 @@
+@*
+    Inicio.razor — Vista 1: la página de entrada del sitio (/).
+
+    QUÉ MUESTRA, EN ORDEN: portada a sangre, datos duros, descripción, lo que se
+    encuentra, los horarios con sus cupos en vivo, los planes, dónde se entrena,
+    la misión y la visión, y el cierre.
+
+    DE DÓNDE SALE ESTA ESTRUCTURA: la pidió Camila Loaiza tomando como referencia
+    la página de sede de un gimnasio (athleticgym.com.co/sedes/itagui). Ese sitio
+    es una aplicación de JavaScript que no deja ver su diseño desde el servidor,
+    pero sí entrega los datos de la página, y de ahí se sacó el orden de las
+    secciones: portada con foto, descripción, lista de características, horarios
+    por día, dirección y mapa, y llamado a la acción. Los colores y la tipografía
+    NO se copiaron (no se pudieron ver): son los de la paleta del proyecto.
+
+    LO QUE SE HIZO DISTINTO A PROPÓSITO: en la referencia los horarios son una
+    tabla fija. Aquí se muestran con el medidor de 20 marcas y con los cupos
+    CONTADOS EN VIVO, así que la portada dice cuántos puestos quedan ahora mismo.
+    Es lo que un gimnasio con máquinas no puede mostrar y este grupo sí.
+
+    POR ESO ESTA PÁGINA YA NO ES SOLO INFORMATIVA: recibe DatosService y
+    ReservaService para leer la ocupación. Sigue sin escribir nada.
+
+    LAS FOTOGRAFÍAS están en wwwroot/img/ y se aplican desde el CSS, no desde
+    aquí: cada ficha solo lleva su clase .ficha--foto-*, y el nombre real del
+    archivo vive en app.css. Así, cambiar una foto no obliga a tocar el Razor.
+    Si un archivo falta, se ve el degradado que va debajo y no se rompe nada
+    (ver wwwroot/img/LEEME.txt).
+*@
+@page "/"
+@inject DatosService Datos
+@inject ReservaService Reservas
+
+<PageTitle>STRONGBODY — CrossFit al aire libre</PageTitle>
+
+@* ---------------------------------------------------------------------------
+   PORTADA
+   Ocupa todo el ancho. El fondo es el marcador de posición de la foto.
+--------------------------------------------------------------------------- *@
+<header class="portada">
+    <div class="contenedor">
+        <span class="eyebrow">CrossFit al aire libre</span>
+        <h1>El gimnasio es el parque</h1>
+
+        <p>
+            Entrenamos afuera, con lo que cabe en una camioneta: pesas rusas,
+            barras, discos, cajones de salto y el peso de tu propio cuerpo.
+            Sin máquinas, sin espejos y sin fila para usar un aparato.
+        </p>
+
+        <p class="portada-lugar">@Direccion</p>
+
+        <div class="btn-fila" style="margin-top: 1.75rem;">
+            <a class="btn btn--primario" href="grupos">Separar mi cupo</a>
+            <a class="btn btn--contorno" href="planes"
+               style="color: var(--hueso); border-color: rgba(255,255,255,0.4);">
+                Ver los planes
+            </a>
+        </div>
+    </div>
+
+    @* --- Datos duros, en la misma pieza oscura --- *@
+    <div class="franja-datos">
+        <div class="contenedor">
+            <div class="dato-fuerte">
+                <span class="dato-fuerte-numero">@Datos.Horarios.Count</span>
+                <span class="dato-fuerte-etiqueta">horarios al día</span>
+            </div>
+            <div class="dato-fuerte">
+                <span class="dato-fuerte-numero">20</span>
+                <span class="dato-fuerte-etiqueta">cupos por clase</span>
+            </div>
+            <div class="dato-fuerte">
+                <span class="dato-fuerte-numero">@CuposLibresHoy</span>
+                <span class="dato-fuerte-etiqueta">cupos libres hoy</span>
+            </div>
+            <div class="dato-fuerte">
+                <span class="dato-fuerte-numero">2</span>
+                <span class="dato-fuerte-etiqueta">profesores</span>
+            </div>
+            <div class="dato-fuerte">
+                <span class="dato-fuerte-numero">0</span>
+                <span class="dato-fuerte-etiqueta">meses de permanencia</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+@* ---------------------------------------------------------------------------
+   ¿QUIÉNES SOMOS?
+   Va en fondo oscuro, en dos columnas: el relato a la izquierda y la lista de
+   lo que se encuentra a la derecha.
+--------------------------------------------------------------------------- *@
+<section class="seccion seccion--oscura">
+    <div class="contenedor">
+
+        <span class="eyebrow eyebrow--grande">Quiénes somos</span>
+        <h2 class="titular-gigante">Entrenamos bajo el cielo</h2>
+
+        <div class="grid grid-2" style="align-items: start; gap: 2.5rem;">
+
+            <div>
+                <p class="quienes-somos-entrada">
+                    Dejamos atrás las cuatro paredes: aquí el techo es el cielo y
+                    el piso es el parque.
+                </p>
+                <p>
+                    STRONGBODY combina la exigencia del CrossFit con el espacio
+                    abierto. Armamos cada clase para que funcione igual si llevas
+                    años cargando una barra o si esta es tu primera vez: el
+                    profesor gradúa la carga persona por persona, y nadie hace un
+                    movimiento que todavía no domina.
+                </p>
+                <p>
+                    Y nunca entrenas solo. El grupo es de máximo veinte, los dos
+                    profesores se aprenden tu nombre en la primera semana y te
+                    corrigen la técnica en el momento, no después. La gente que
+                    llega sola termina yéndose con quién entrenar mañana.
+                </p>
+                <p style="color: var(--rojo); font-weight: 700;">
+                    Aquí sudamos, nos reímos y crecemos juntos.
+                </p>
+            </div>
+
+            <div>
+                <span class="eyebrow">Lo que encuentras</span>
+                <ul class="lista-beneficios">
+                    <li>Clases guiadas por un profesor, siempre</li>
+                    <li>Máximo veinte personas por clase</li>
+                    <li>Sin cláusula de permanencia</li>
+                    <li>Primera clase sin pagar nada</li>
+                    <li>Implementos incluidos: pesas rusas, barras, discos</li>
+                    <li>Cajones de salto, lazos y colchonetas</li>
+                    <li>Trabajo de fuerza, movilidad y acondicionamiento</li>
+                    <li>Tres horarios: uno en la mañana, dos en la noche</li>
+                    <li>Planes diario, quincenal y mensual</li>
+                    <li>Pago en efectivo directamente con el profesor</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   CON NOSOTROS CONSEGUIRÁS
+   Una ficha por objetivo. Los objetivos NO están escritos aquí: salen de la
+   enumeración Objetivo del dominio, que es la misma lista que ofrece el
+   formulario de clientes. Así la portada y el sistema no se pueden desfasar:
+   si algún día se agrega un objetivo, aparece solo en esta sección.
+--------------------------------------------------------------------------- *@
+<section class="seccion seccion--oscura seccion--oscura-calida seccion--centrada">
+    <div class="contenedor">
+
+        <span class="eyebrow eyebrow--grande">Con nosotros</span>
+        <h2 class="titular-gigante">Conseguirás</h2>
+
+        <div class="rejilla-fichas">
+            @foreach (var meta in Metas)
+            {
+                <div class="ficha ficha--@meta.ClaseFoto">
+                    <span class="ficha-linea1">@meta.Gancho</span>
+                    <span class="ficha-linea2">@meta.Objetivo.Texto()</span>
+                </div>
+            }
+        </div>
+
+        <p class="texto-chico" style="margin-top: 1.75rem;">
+            Eliges tu objetivo al registrarte, y el profesor lo revisa contigo
+            cada mes.
+        </p>
+
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   HORARIOS, CON LOS CUPOS EN VIVO
+   En la referencia esto era una tabla de horas de apertura. Aquí, además de la
+   hora, se ve cuántos cupos quedan ahora mismo.
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+        <span class="eyebrow">Horarios de hoy</span>
+        <h2>Elige a qué hora entrenas</h2>
+        <p class="texto-secundario">
+            Las marcas son los cupos: las sólidas están tomadas y las claras
+            siguen libres. Se actualizan a medida que la gente reserva.
+        </p>
+
+        <div class="tarjeta" style="margin-top: 1.5rem; padding-top: 0.5rem; padding-bottom: 0.5rem;">
+            @foreach (var horario in Datos.Horarios.OrderBy(h => h.Hora))
+            {
+                var grupo = Datos.BuscarGrupo(horario.GrupoId)!;
+                var ocupados = Reservas.ContarOcupados(horario.Id, Hoy);
+                var libres = horario.CupoMaximo - ocupados;
+                var lleno = libres <= 0;
+
+                <div class="horario-fila horario-fila--@grupo.Jornada.ClaseCss()">
+
+                    <span class="horario-hora">@horario.HoraTexto</span>
+
+                    <div class="horario-datos">
+                        <p style="margin: 0 0 0.5rem; font-weight: 600;">@grupo.Nombre</p>
+
+                        <div class="cupos @(grupo.Jornada == Jornada.Noche ? "cupos--noche" : "") @(lleno ? "cupos--lleno" : "")">
+                            <div class="cupos-marcas" aria-hidden="true">
+                                @for (var i = 0; i < horario.CupoMaximo; i++)
+                                {
+                                    <span class="marca-cupo @(i < ocupados ? "marca-cupo--ocupada" : "")"></span>
+                                }
+                            </div>
+                            <p class="cupo-texto" style="margin: 0;">
+                                @if (lleno)
+                                {
+                                    <text>Sin cupos disponibles</text>
+                                }
+                                else
+                                {
+                                    <text><strong>@libres</strong> @(libres == 1 ? "cupo libre" : "cupos libres") de @horario.CupoMaximo</text>
+                                }
+                            </p>
+                        </div>
+                    </div>
+
+                    <a class="btn @(lleno ? "btn--contorno" : "btn--primario") btn--chico" href="grupos">
+                        @(lleno ? "Ver otros horarios" : "Separar cupo")
+                    </a>
+
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   ASÍ SE VE UNA CLASE
+   Dos fotografías reales. Los archivos van en wwwroot/img/ con los nombres
+   que documenta wwwroot/img/LEEME.txt; mientras no estén, se ve el degradado.
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+        <span class="eyebrow">Así se ve una clase</span>
+        <h2>Una hora, de principio a fin</h2>
+        <p class="texto-secundario">
+            Se arranca con movilidad, se sigue con el trabajo de fuerza del día
+            y se cierra con un circuito. El profesor gradúa la carga uno por uno.
+        </p>
+
+        <div class="grid grid-2" style="margin-top: 1.5rem;">
+            <div class="ficha ficha--ancha ficha--foto-balon">
+                <span class="ficha-rotulo">Fuerza con balón medicinal</span>
+            </div>
+            <div class="ficha ficha--ancha ficha--foto-barra">
+                <span class="ficha-rotulo">Levantamiento con barra</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   PLANES
+   Mismo tratamiento que la sección anterior: fondo oscuro, titular gigante y
+   fichas con foto. Los tres planes salen del almacén, no están escritos aquí.
+--------------------------------------------------------------------------- *@
+<section class="seccion seccion--oscura seccion--centrada">
+    <div class="contenedor">
+
+        <span class="eyebrow eyebrow--grande">Conoce nuestros</span>
+        <h2 class="titular-gigante titular-gigante--acento">Planes</h2>
+
+        <div class="rejilla-fichas">
+            @foreach (var plan in Datos.Planes)
+            {
+                <div class="ficha ficha--plan ficha--@VariantePlan(plan.Id)">
+                    <h3 class="ficha-titulo">@plan.Nombre</h3>
+
+                    <p class="ficha-precio">
+                        $@plan.Precio.ToString("N0")
+                        <span class="texto-chico" style="font-weight: 600; color: rgba(255,255,255,0.6);">
+                            / @(plan.DiasDuracion == 1 ? "clase" : $"{plan.DiasDuracion} días")
+                        </span>
+                    </p>
+
+                    <p class="ficha-texto">@plan.Descripcion</p>
+
+                    <a class="btn btn--primario" href="planes">Únete ahora</a>
+                </div>
+            }
+        </div>
+
+        <p class="texto-chico" style="margin-top: 1.75rem;">
+            Los tres dan acceso a cualquiera de los tres horarios. Sin matrícula
+            y sin permanencia: cuando se acaba, decides si sigues.
+        </p>
+
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   DÓNDE ENTRENAMOS
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+        <div class="grid grid-2" style="align-items: center; gap: 2.5rem;">
+
+            <div>
+                <span class="eyebrow">Dónde entrenamos</span>
+                <h2>Nos vemos en el parque</h2>
+                <p>@Direccion</p>
+                <p class="texto-secundario">
+                    Buscas el grupo de la camioneta y las colchonetas: no tiene
+                    pérdida. Llega diez minutos antes de tu primera clase para que
+                    el profesor te ubique.
+                </p>
+                <p class="texto-secundario texto-chico">
+                    Si llueve fuerte, la clase se avisa por WhatsApp y se reprograma.
+                </p>
+            </div>
+
+            <div class="mapa-marcador">
+                Mapa: ubicación del punto de entrenamiento
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   MISIÓN Y VISIÓN
+--------------------------------------------------------------------------- *@
+<section class="seccion">
+    <div class="contenedor">
+        <div class="grid grid-2">
+
+            <div class="tarjeta tarjeta--manana">
+                <span class="eyebrow">Misión</span>
+                <h3>Sacar el entrenamiento del gimnasio</h3>
+                <p>
+                    Hacer del entrenamiento funcional algo cercano y sostenible:
+                    llevar el CrossFit a un espacio abierto donde cualquier persona
+                    pueda empezar sin sentirse fuera de lugar, sin importar su edad
+                    ni su condición física de partida, con un profesor acompañando
+                    cada clase de cerca.
+                </p>
+            </div>
+
+            <div class="tarjeta tarjeta--noche">
+                <span class="eyebrow">Visión</span>
+                <h3>Un hábito que se sostiene solo</h3>
+                <p>
+                    Ser el grupo de entrenamiento al aire libre de referencia en la
+                    ciudad, con clases en varios parques y una comunidad que sostiene
+                    el hábito por convicción y no por obligación: gente que llega a
+                    entrenar porque quiere, no porque ya pagó la mensualidad.
+                </p>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   CIERRE
+--------------------------------------------------------------------------- *@
+<section class="seccion cierre">
+    <div class="contenedor">
+        <span class="eyebrow" style="color: var(--rojo);">Primera clase</span>
+        <h2>Ven a probar antes de decidir</h2>
+        <p>
+            Separa un cupo con tu nombre, sin registrarte y sin pagar nada.
+            Si te gusta, ahí hablamos de planes.
+        </p>
+        <a class="btn btn--primario" href="grupos" style="margin-top: 0.5rem;">
+            Separar mi cupo
+        </a>
+    </div>
+</section>
+
+@code {
+    /*
+     * DIRECCIÓN — de ejemplo. Reemplazar por la real del grupo.
+     *
+     * Está aquí como constante, igual que el teléfono y las redes en
+     * SitioLayout.razor, para que cambiarla sea editar una sola línea.
+     */
+    private const string Direccion = "Parque Principal de Itagüí · Carrera 51 con Calle 51";
+
+    private DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    /// <summary>
+    /// Cuántos cupos quedan libres hoy sumando los tres horarios. Se cuenta en
+    /// el momento, así que el número de la portada siempre es el real.
+    /// </summary>
+    private int CuposLibresHoy =>
+        Datos.Horarios.Sum(h => Reservas.CuposDisponibles(h.Id, Hoy));
+
+    /// <summary>
+    /// Una ficha de la sección "Conseguirás": el objetivo del dominio, la
+    /// frase que lo acompaña arriba y la clase CSS que le pone su fotografía.
+    /// </summary>
+    private record Meta(Objetivo Objetivo, string Gancho, string ClaseFoto);
+
+    /*
+     * Las cuatro metas se generan A PARTIR de la enumeración Objetivo, no
+     * escritas a mano. Si algún día se agrega un objetivo al dominio, aparece
+     * solo en esta sección.
+     *
+     * El texto grande de cada ficha sale de Objetivo.Texto(), que es el mismo
+     * que muestran el formulario de clientes y el panel: la portada no puede
+     * decir una cosa y el sistema otra.
+     *
+     * Los dos arreglos van EMPAREJADOS POR POSICIÓN con el orden de la
+     * enumeración (Volumen, Definición, Tonificar, Salud y vitalidad). Si se
+     * agrega un objetivo hay que agregarle su gancho y su foto aquí; el método
+     * de abajo avisa con un mensaje claro si alguien lo olvida, en vez de
+     * reventar con un error de índice fuera de rango.
+     */
+    private static readonly string[] Ganchos =
+    {
+        "Ganar masa",       // Volumen
+        "Bajar grasa",      // Definición
+        "Marcar figura",    // Tonificar
+        "Energía diaria"    // Salud y vitalidad
+    };
+
+    // Cada nombre corresponde a una clase .ficha--foto-* de app.css, que es
+    // donde está el nombre real del archivo de la foto.
+    private static readonly string[] ClasesFoto =
+    {
+        "foto-volumen",
+        "foto-definicion",
+        "foto-tonificar",
+        "foto-salud"
+    };
+
+    private static List<Meta> Metas
+    {
+        get
+        {
+            var objetivos = Enum.GetValues<Objetivo>();
+
+            if (Ganchos.Length != objetivos.Length || ClasesFoto.Length != objetivos.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Hay {objetivos.Length} objetivos en la enumeración pero {Ganchos.Length} " +
+                    $"ganchos y {ClasesFoto.Length} fotos en Inicio.razor. Los tres deben ir " +
+                    "emparejados por posición.");
+            }
+
+            return objetivos
+                .Select((objetivo, i) => new Meta(objetivo, Ganchos[i], ClasesFoto[i]))
+                .ToList();
+        }
+    }
+
+    /*
+     * Los tres planes todavía NO tienen fotografía, así que usan los duotonos
+     * de degradado (.ficha--a, --b, --c, --d de app.css). Cuando haya fotos se
+     * cambia este arreglo por clases .ficha--foto-*, igual que los objetivos.
+     */
+    private static readonly string[] DuotonosPlan = { "a", "b", "c", "d" };
+
+    /// <summary>
+    /// Qué duotono le toca a cada plan. El resto (%) reparte los duotonos en
+    /// ciclo, así que sirve aunque algún día haya más de cuatro planes.
+    /// </summary>
+    private static string VariantePlan(int planId) =>
+        DuotonosPlan[(planId - 1) % DuotonosPlan.Length];
+}

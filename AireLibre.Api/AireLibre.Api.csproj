@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    AireLibre.Api — API REST con Swagger, aparte del sitio Blazor.
+
+    NO tiene copia de los modelos ni de los servicios: los ENLAZA desde el
+    proyecto AireLibre (ver el ItemGroup de abajo). Así las reglas de negocio
+    (cupo máximo de 20, documento único, etc.) siguen viviendo en un solo lugar
+    y la API y el sitio no se pueden desfasar.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AireLibre.Api</RootNamespace>
+    <!-- Los comentarios /// <summary> se convierten en las descripciones de Swagger -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591;1573</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+
+  <!-- Modelos y servicios del proyecto Blazor, enlazados (no copiados) -->
+  <ItemGroup>
+    <Compile Include="..\AireLibre\Models\**\*.cs" Link="Compartido\Models\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\AireLibre\Services\**\*.cs" Link="Compartido\Services\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

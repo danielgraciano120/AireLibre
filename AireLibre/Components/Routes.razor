@@ -1,0 +1,21 @@
+@*
+    Routes.razor — Enrutador de la aplicación.
+
+    QUÉ HACE: busca en el ensamblado la página cuyo @page coincide con la
+    dirección del navegador y la dibuja.
+
+    DefaultLayout="SitioLayout" significa que toda página que NO declare un
+    @layout propio queda envuelta por el layout público. Las páginas del panel
+    sí declaran el suyo (@layout PanelLayout), así que quedan por fuera de esa
+    regla.
+
+    FocusOnNavigate lleva el foco al <h1> al cambiar de página. Sin eso, quien
+    navega con teclado o lector de pantalla quedaría con el foco en el enlace
+    que acaba de pulsar, sin enterarse de que el contenido cambió.
+*@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.SitioLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

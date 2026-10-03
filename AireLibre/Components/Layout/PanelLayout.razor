@@ -1,0 +1,89 @@
+@*
+    PanelLayout.razor — Layout del panel de administración.
+
+    QUÉ HACE: pone la barra lateral con el menú del panel y los datos de quien
+    tiene la sesión abierta alrededor de las páginas protegidas.
+
+    CÓMO SE USA: cada página del panel lo declara explícitamente, porque el
+    layout por defecto del enrutador es el público:
+
+        @page "/panel/clientes"
+        @layout PanelLayout
+        @inherits PaginaPanel
+
+    QUIÉN PROTEGE LAS PÁGINAS: no este layout, sino PaginaPanel, que comprueba
+    la sesión en OnInitialized. Este archivo solo dibuja. Aun así, el bloque de
+    usuario de abajo se salta si no hay sesión: durante el instante que tarda la
+    redirección, no tiene sentido dibujar el nombre de nadie.
+
+    RESPONSIVE: en pantallas de menos de 900 px la barra lateral se convierte en
+    una barra superior con el menú en fila. Eso está resuelto en app.css, no
+    aquí (ver la sección 7 de esa hoja).
+*@
+@inherits LayoutComponentBase
+@inject SesionService Sesion
+@inject NavigationManager Navegacion
+
+<div class="panel">
+
+    <aside class="panel-aside">
+
+        <div>
+            <a class="marca" href="/">
+                <img class="marca-logo" src="img/logo.png" alt="STRONGBODY" />
+            </a>
+            <p class="texto-chico" style="margin: 0.35rem 0 0; opacity: 0.7;">Panel de administración</p>
+        </div>
+
+        <nav class="panel-nav" aria-label="Menú del panel">
+            @* Match="All" en /panel evita que "Resumen" quede resaltado en
+               todas las páginas del panel, ya que todas empiezan por /panel. *@
+            <NavLink href="panel" Match="NavLinkMatch.All">Resumen</NavLink>
+            <NavLink href="panel/clases">Clases de hoy</NavLink>
+            <NavLink href="panel/clientes">Clientes</NavLink>
+            <NavLink href="panel/pagos">Pagos</NavLink>
+            <NavLink href="panel/inventario">Inventario</NavLink>
+            <NavLink href="panel/solicitudes">Solicitudes</NavLink>
+            <NavLink href="panel/notificaciones">Notificaciones</NavLink>
+        </nav>
+
+        @* Bloque de sesión, pegado al fondo de la barra. *@
+        <div style="margin-top: auto;">
+            @if (Sesion.HaySesion)
+            {
+                <p class="usuario-sesion">
+                    Sesión de
+                    <strong>@Sesion.NombreMostrado</strong>
+                </p>
+
+                <button type="button" class="btn btn--contorno btn--chico"
+                        style="color: var(--hueso); border-color: rgba(255, 255, 255, 0.35);"
+                        @onclick="CerrarSesion">
+                    Cerrar sesión
+                </button>
+            }
+
+            <p class="texto-chico" style="margin: 1rem 0 0; opacity: 0.55;">
+                <a href="/">Ver el sitio público</a>
+            </p>
+        </div>
+
+    </aside>
+
+    <main class="panel-main" id="contenido">
+        @Body
+    </main>
+
+</div>
+
+@code {
+    /// <summary>
+    /// Cierra la sesión y devuelve a la persona al sitio público. Se sale al
+    /// inicio y no a /login, porque cerrar sesión es irse, no volver a entrar.
+    /// </summary>
+    private void CerrarSesion()
+    {
+        Sesion.CerrarSesion();
+        Navegacion.NavigateTo("/", replace: true);
+    }
+}

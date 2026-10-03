@@ -1,0 +1,24 @@
+@*
+    _Imports.razor — Directivas @using compartidas por TODOS los .razor.
+
+    Lo que se declare aquí no hace falta repetirlo en cada componente. Por eso
+    las vistas pueden escribir directamente Cliente, DatosService, Modal o
+    TarjetaClase sin importar nada.
+*@
+
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+
+@* Espacios de nombres propios del proyecto *@
+@using AireLibre
+@using AireLibre.Components
+@using AireLibre.Components.Layout
+@using AireLibre.Components.Shared
+@using AireLibre.Models
+@using AireLibre.Services

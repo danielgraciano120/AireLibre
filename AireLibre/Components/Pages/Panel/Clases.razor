@@ -1,0 +1,140 @@
+@*
+    Clases.razor — Vista 6: quién separó cupo (/panel/clases).
+
+    QUÉ MUESTRA: la lista de personas que separaron cupo hoy, AGRUPADA POR
+    HORARIO. Cada bloque deja claro de qué clase se trata: el grupo, la hora
+    escrita completa y la ocupación sobre 20.
+
+    Es una pantalla de solo lectura: el profesor la abre para saber a quién
+    espera en cada clase. No se puede quitar a nadie desde aquí.
+
+    LOS CUPOS SE CUENTAN, NO SE GUARDAN: el número de inscritos sale de contar
+    las reservas en ReservaService, así que siempre corresponde a la realidad.
+*@
+@page "/panel/clases"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ReservaService Reservas
+
+<PageTitle>Clases de hoy — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Clases de hoy</span>
+        <h1>Quién separó cupo</h1>
+    </div>
+    <p class="texto-secundario texto-chico" style="margin: 0;">
+        @TotalDeHoy @(TotalDeHoy == 1 ? "cupo separado" : "cupos separados") · @FechaDeHoy
+    </p>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @* Un bloque por horario, en orden de hora. Se muestran los tres siempre,
+       incluso vacíos: que una clase no tenga a nadie también es información. *@
+    @foreach (var horario in Datos.Horarios.OrderBy(h => h.Hora))
+    {
+        var grupo = Datos.BuscarGrupo(horario.GrupoId)!;
+        var inscritos = ReservasDe(horario.Id);
+        var libres = horario.CupoMaximo - inscritos.Count;
+
+        <div class="tarjeta tarjeta--@grupo.Jornada.ClaseCss()" style="margin-bottom: 1.5rem;">
+
+            @* Encabezado del bloque: el horario, dicho sin ambigüedad. *@
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <span class="eyebrow">@grupo.Nombre</span>
+                    <h2 style="margin-bottom: 0.25rem;">@horario.HoraTexto</h2>
+                    <p class="texto-secundario texto-chico" style="margin: 0;">
+                        @inscritos.Count de @horario.CupoMaximo inscritos ·
+                        @if (libres == 0)
+                        {
+                            <text>clase completa</text>
+                        }
+                        else
+                        {
+                            <text>@libres @(libres == 1 ? "cupo libre" : "cupos libres")</text>
+                        }
+                    </p>
+                </div>
+
+                <span class="distintivo @(libres == 0 ? "distintivo--alerta" : (grupo.Jornada == Jornada.Manana ? "distintivo--alerta" : "distintivo--noche"))">
+                    @(libres == 0 ? "Completa" : $"{libres} libres")
+                </span>
+            </div>
+
+            @if (inscritos.Count == 0)
+            {
+                <div class="vacio" style="margin-top: 1.25rem;">
+                    <p>Todavía nadie separó cupo para esta clase.</p>
+                </div>
+            }
+            else
+            {
+                <div class="tabla-scroll" style="margin-top: 1.25rem;">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th style="width: 3rem;">#</th>
+                                <th>Nombre</th>
+                                <th>Registro</th>
+                                <th>Hora en que reservó</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ var numero = 1; }
+                            @foreach (var reserva in inscritos)
+                            {
+                                <tr>
+                                    <td class="celda-numero texto-secundario">@numero</td>
+                                    <td>@reserva.NombreCompleto</td>
+                                    <td>
+                                        @*
+                                            La reserva puede o no estar enlazada a un
+                                            cliente registrado: se reserva sin registrarse
+                                            (ver Reserva.cs). Cuando sí lo está, el nombre
+                                            lleva a su ficha.
+                                        *@
+                                        @if (reserva.ClienteId is not null)
+                                        {
+                                            <a class="distintivo distintivo--ok"
+                                               style="text-decoration: none;"
+                                               href="panel/clientes/@reserva.ClienteId">Cliente</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="distintivo distintivo--neutro">Sin registrar</span>
+                                        }
+                                    </td>
+                                    <td class="texto-secundario">@reserva.FechaRegistro.ToString("h:mm tt")</td>
+                                </tr>
+                                numero++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    private string FechaDeHoy =>
+        DateTime.Today.ToString("d 'de' MMMM", new System.Globalization.CultureInfo("es-CO"));
+
+    private int TotalDeHoy => Datos.Reservas.Count(r => r.FechaClase == Hoy);
+
+    /// <summary>
+    /// Las reservas de hoy para un horario, en el orden en que se hicieron:
+    /// quien reservó primero aparece primero, que es como se armaría la lista
+    /// a mano.
+    /// </summary>
+    private List<Reserva> ReservasDe(int horarioId) =>
+        Datos.Reservas
+            .Where(r => r.HorarioId == horarioId && r.FechaClase == Hoy)
+            .OrderBy(r => r.FechaRegistro)
+            .ToList();
+}

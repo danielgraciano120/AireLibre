@@ -1,0 +1,11 @@
+# Bloque mínimo equipo TI AYNN-OROEXPRESS
+.claude/settings.local.json
+CLAUDE.local.md
+.env
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/

@@ -1,0 +1,158 @@
+@*
+    SitioLayout.razor — Layout del sitio público.
+
+    QUÉ HACE: pone la cabecera con el menú y el pie con los datos de contacto
+    alrededor de las páginas públicas (/, /grupos, /planes, /login). Es el
+    layout por defecto del enrutador, así que una página pública no necesita
+    declarar nada: con tener su @page ya queda envuelta por este.
+
+    El panel de administración usa otro layout distinto (PanelLayout).
+
+    DATOS DE CONTACTO: están abajo, en el bloque @code, como constantes. Son de
+    ejemplo y hay que reemplazarlos por los reales del grupo. Se dejaron en un
+    solo lugar justamente para que cambiarlos sea editar tres líneas.
+
+    ENLACES A REDES: los tres abren en una pestaña nueva. Van con
+    rel="noopener noreferrer", que es lo que evita que la página abierta pueda
+    manipular la nuestra desde JavaScript.
+*@
+@inherits LayoutComponentBase
+@inject SesionService Sesion
+
+@* Enlace que solo aparece al tabular: permite saltarse el menú y caer directo
+   en el contenido. Es lo primero que encuentra quien navega con teclado. *@
+<a class="salto-contenido" href="#contenido">Saltar al contenido</a>
+
+<header class="sitio-header">
+    <div class="contenedor">
+
+        @* El logo reemplaza al nombre escrito. Lleva alt con el nombre de la
+           marca: para un lector de pantalla el enlace sigue diciendo a dónde
+           va, aunque no pueda ver la imagen. *@
+        <a class="marca" href="/">
+            <img class="marca-logo" src="img/logo.png" alt="STRONGBODY" />
+        </a>
+
+        <nav class="sitio-nav" aria-label="Menú principal">
+            @* Match="All" hace que Inicio solo se marque activo en "/" exacto.
+               Sin eso quedaría resaltado en todas las páginas, porque toda
+               ruta empieza por "/". *@
+            <NavLink href="" Match="NavLinkMatch.All">Inicio</NavLink>
+            <NavLink href="grupos">Grupos</NavLink>
+            <NavLink href="planes">Planes</NavLink>
+
+            @* Con la sesión abierta no tiene sentido ofrecer "Ingresar": el
+               enlace lleva directo al panel. *@
+            @if (Sesion.HaySesion)
+            {
+                <NavLink href="panel">Panel</NavLink>
+            }
+            else
+            {
+                <NavLink href="login">Ingresar</NavLink>
+            }
+        </nav>
+
+    </div>
+</header>
+
+<main id="contenido">
+    @Body
+</main>
+
+<footer class="sitio-footer">
+    <div class="contenedor">
+        <div class="footer-grid">
+
+            <div>
+                <h3>STRONGBODY</h3>
+                <p class="texto-chico">
+                    CrossFit al aire libre. Tres horarios, veinte cupos cada uno
+                    y dos profesores que dictan todas las clases.
+                </p>
+            </div>
+
+            <div>
+                <span class="eyebrow">Contacto</span>
+                @* El enlace tel: abre el marcador en el celular. El href va sin
+                   espacios; el texto visible sí los lleva, que se lee mejor.
+
+                   OJO: el href se arma en una propiedad (EnlaceTelefono) y no
+                   escribiendo "tel:+57@TelefonoSinEspacios" directo. Razor
+                   interpreta una @ pegada a texto como parte de un correo
+                   electrónico y la deja literal: el enlace salía roto, con el
+                   nombre de la variable metido en el href. *@
+                <a class="telefono-grande" href="@EnlaceTelefono">@Telefono</a>
+                <p class="texto-chico" style="margin-top: 0.5rem;">
+                    Escríbenos para resolver dudas antes de tu primera clase.
+                </p>
+            </div>
+
+            <div>
+                <span class="eyebrow">Síguenos</span>
+                <div class="redes">
+
+                    <a class="red" href="@UrlInstagram" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+                            <circle cx="12" cy="12" r="4.2" />
+                            <circle cx="17.6" cy="6.4" r="1.1" fill="currentColor" stroke="none" />
+                        </svg>
+                        <span class="sr-only">Instagram (se abre en una pestaña nueva)</span>
+                    </a>
+
+                    <a class="red" href="@UrlFacebook" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                        </svg>
+                        <span class="sr-only">Facebook (se abre en una pestaña nueva)</span>
+                    </a>
+
+                    <a class="red" href="@UrlWhatsApp" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z" />
+                        </svg>
+                        <span class="sr-only">WhatsApp (se abre en una pestaña nueva)</span>
+                    </a>
+
+                </div>
+            </div>
+
+        </div>
+
+        <p class="texto-chico" style="margin-top: 2rem; margin-bottom: 0; opacity: 0.7;">
+            © @DateTime.Now.Year STRONGBODY. Trabajo académico de Ingeniería Informática.
+        </p>
+    </div>
+</footer>
+
+@code {
+    /*
+     * DATOS DE CONTACTO — de ejemplo. Reemplazar por los reales del grupo.
+     *
+     * Están aquí, juntos y como constantes, en vez de escritos entre el HTML,
+     * para que actualizarlos sea tocar un solo bloque y no buscar por todo el
+     * archivo.
+     */
+
+    private const string Telefono = "310 364 0944";
+
+    private const string UrlInstagram = "https://www.instagram.com/airelibre.crossfit";
+    private const string UrlFacebook = "https://www.facebook.com/airelibre.crossfit";
+
+    // wa.me exige el número sin espacios, sin signos y con indicativo de país.
+    private const string UrlWhatsApp = "https://wa.me/573103640944";
+
+    /// <summary>Indicativo de país, para el enlace tel:.</summary>
+    private const string Indicativo = "+57";
+
+    /// <summary>
+    /// El href completo del enlace tel:, ya armado. Se calcula a partir de la
+    /// constante de arriba para que nunca queden los dos desincronizados, y se
+    /// arma aquí y no en el marcado por el problema de la @ que explica el
+    /// comentario del pie.
+    /// </summary>
+    private static string EnlaceTelefono => $"tel:{Indicativo}{Telefono.Replace(" ", string.Empty)}";
+}

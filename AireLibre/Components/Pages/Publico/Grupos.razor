@@ -1,0 +1,183 @@
+@*
+    Grupos.razor — Vista 2: los horarios con sus cupos (/grupos).
+
+    QUÉ HACE: muestra los tres horarios agrupados por jornada, cada uno con su
+    medidor de 20 marcas. Al elegir uno se abre un modal que pide el nombre
+    completo y separa el cupo.
+
+    QUÉ NO HACE: no valida el límite de 20. Eso lo hace ReservaService, que es
+    quien cuenta e inserta. Esta vista solo deshabilita el botón cuando el grupo
+    está lleno, que es una comodidad para la persona, no la regla. Si alguien
+    abriera dos pestañas y las dos vieran un cupo libre, la segunda recibiría el
+    rechazo del servicio igual. Ver ReservaService.cs.
+
+    CÓMO SE ACTUALIZA LA PANTALLA: los cupos ocupados no se guardan en un campo
+    de esta página; se le preguntan a ReservaService en cada render. Por eso,
+    apenas se inserta una reserva, los medidores se redibujan solos con el
+    número correcto sin tener que refrescar nada a mano.
+*@
+@page "/grupos"
+@inject ReservaService Reservas
+
+<PageTitle>Grupos y horarios — STRONGBODY</PageTitle>
+
+<section class="seccion">
+    <div class="contenedor">
+
+        <span class="eyebrow">Horarios de hoy</span>
+        <h1>Elige tu clase</h1>
+        <p>
+            Cada clase admite veinte personas. Las marcas de abajo son los cupos:
+            las sólidas están tomadas y las claras siguen libres. No hace falta
+            registrarse ni pagar para separar uno, solo tu nombre.
+        </p>
+
+        @* Mensaje de resultado de la última reserva. Se muestra arriba de todo
+           para que se vea sin tener que buscar. *@
+        @if (!string.IsNullOrEmpty(_mensaje))
+        {
+            <div class="aviso @(_reservaExitosa ? "" : "aviso--error")" role="status">
+                <p>@_mensaje</p>
+            </div>
+        }
+
+        @* Un bloque por grupo (mañana y noche), con sus horarios adentro. Se
+           agrupa así porque es como la gente los nombra: "el de la noche". *@
+        @foreach (var grupo in Datos.Grupos)
+        {
+            var horariosDelGrupo = Datos.Horarios.Where(h => h.GrupoId == grupo.Id).OrderBy(h => h.Hora).ToList();
+
+            <div style="margin-top: 2.5rem;">
+                <h2>@grupo.Nombre</h2>
+                <p class="texto-secundario">@grupo.Descripcion</p>
+
+                <div class="grid grid-3" style="margin-top: 1.25rem;">
+                    @foreach (var horario in horariosDelGrupo)
+                    {
+                        <TarjetaClase Horario="horario"
+                                      Grupo="grupo"
+                                      Ocupados="Reservas.ContarOcupados(horario.Id, Hoy)"
+                                      OnSeleccionar="AbrirModal" />
+                    }
+                </div>
+            </div>
+        }
+
+    </div>
+</section>
+
+@* ---------------------------------------------------------------------------
+   MODAL PARA SEPARAR EL CUPO
+   Se dibuja siempre, pero solo se ve cuando Visible es verdadero.
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalAbierto"
+       Titulo="Separar cupo"
+       OnCerrar="CerrarModal">
+
+    @* OJO: en cuanto un componente recibe un fragmento con nombre (<Pie>), el
+       resto del contenido TAMBIÉN debe ir en un fragmento con nombre. Por eso
+       el cuerpo va envuelto en <ChildContent> y no suelto. *@
+    <ChildContent>
+        @if (_horarioElegido is not null)
+        {
+            <p class="texto-secundario">
+                Clase de <strong>@Datos.DescribirHorario(_horarioElegido.Id)</strong>.
+                Quedan @Reservas.CuposDisponibles(_horarioElegido.Id, Hoy) cupos.
+            </p>
+
+            @* Es un formulario de verdad (no solo un input suelto) para que al
+               pulsar Enter también se envíe, sin obligar a usar el mouse. *@
+            <form @onsubmit="Confirmar" @onsubmit:preventDefault="true">
+                <div class="campo">
+                    <label for="nombre-reserva">Nombre completo</label>
+                    <input id="nombre-reserva"
+                           type="text"
+                           autocomplete="name"
+                           placeholder="Escribe tu nombre y apellido"
+                           @bind="_nombreCompleto"
+                           @bind:event="oninput" />
+                </div>
+
+                @* Error del intento anterior, mostrado dentro del modal para que
+                   quede junto al campo que hay que corregir. *@
+                @if (!string.IsNullOrEmpty(_errorModal))
+                {
+                    <p class="campo-error">@_errorModal</p>
+                }
+            </form>
+        }
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CerrarModal">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="Confirmar">Separar cupo</button>
+    </Pie>
+
+</Modal>
+
+@code {
+    // El almacén se usa solo para leer grupos y horarios (datos fijos). Todo lo
+    // que escribe pasa por ReservaService.
+    [Inject] private DatosService Datos { get; set; } = default!;
+
+    // --- Estado de la pantalla ----------------------------------------------
+
+    private bool _modalAbierto;
+    private Horario? _horarioElegido;
+    private string _nombreCompleto = string.Empty;
+
+    // Error que se muestra DENTRO del modal, junto al campo.
+    private string _errorModal = string.Empty;
+
+    // Mensaje que se muestra ARRIBA de la página, ya cerrado el modal.
+    private string _mensaje = string.Empty;
+    private bool _reservaExitosa;
+
+    /// <summary>
+    /// El día para el que se reserva. Hoy mismo: el sitio no maneja reservas
+    /// para días futuros.
+    /// </summary>
+    private DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    // --- Acciones ------------------------------------------------------------
+
+    /// <summary>Abre el modal para el horario que se pulsó, en limpio.</summary>
+    private void AbrirModal(Horario horario)
+    {
+        _horarioElegido = horario;
+        _nombreCompleto = string.Empty;
+        _errorModal = string.Empty;
+        _mensaje = string.Empty;
+        _modalAbierto = true;
+    }
+
+    private void CerrarModal()
+    {
+        _modalAbierto = false;
+        _horarioElegido = null;
+        _errorModal = string.Empty;
+    }
+
+    /// <summary>
+    /// Pide a ReservaService que separe el cupo. Si el servicio acepta, se
+    /// cierra el modal y el aviso queda arriba; si rechaza, el modal sigue
+    /// abierto con el error para poder corregir sin volver a empezar.
+    /// </summary>
+    private void Confirmar()
+    {
+        if (_horarioElegido is null) return;
+
+        var resultado = Reservas.SepararCupo(_horarioElegido.Id, _nombreCompleto, Hoy);
+
+        if (resultado.Exito)
+        {
+            _mensaje = resultado.Mensaje;
+            _reservaExitosa = true;
+            CerrarModal();
+        }
+        else
+        {
+            _errorModal = resultado.Mensaje;
+        }
+    }
+}

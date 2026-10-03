@@ -1,0 +1,44 @@
+@*
+    Error.razor — Página mostrada cuando ocurre una excepción no controlada.
+
+    NOTA: solo se usa fuera del entorno de desarrollo (ver Program.cs). En
+    desarrollo se muestra la página de diagnóstico detallada de ASP.NET Core,
+    que es la que sirve para depurar.
+*@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error — STRONGBODY</PageTitle>
+
+<section class="seccion">
+    <div class="contenedor">
+        <span class="eyebrow">Error del servidor</span>
+        <h1>Algo salió mal</h1>
+        <p class="texto-secundario">
+            No se pudo completar la operación. Vuelve a intentarlo; si el
+            problema sigue, avísale al administrador del sitio con el
+            identificador de abajo.
+        </p>
+
+        @if (MostrarIdentificador)
+        {
+            <div class="aviso aviso--error">
+                <p><strong>Identificador de la solicitud:</strong> @Identificador</p>
+            </div>
+        }
+
+        <a class="btn btn--primario" href="/">Volver al inicio</a>
+    </div>
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? Identificador { get; set; }
+
+    private bool MostrarIdentificador => !string.IsNullOrEmpty(Identificador);
+
+    protected override void OnInitialized() =>
+        Identificador = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

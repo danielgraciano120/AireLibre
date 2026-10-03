@@ -1,0 +1,116 @@
+@*
+    TablaClientes.razor — Tabla de clientes con sus acciones.
+
+    QUÉ HACE: dibuja la lista de clientes y avisa cuando se pulsa "Editar",
+    "Eliminar" o el nombre. No decide nada: no filtra, no ordena, no guarda y no
+    borra. Solo muestra lo que le pasan y devuelve el clic.
+
+    CÓMO SE USA:
+
+        <TablaClientes Clientes="_lista"
+                       OnEditar="AbrirEdicion"
+                       OnEliminar="PedirConfirmacion" />
+
+    POR QUÉ ESTÁ SEPARADA DE LA VISTA: la vista de clientes ya carga con el
+    formulario de alta, el de edición y la confirmación de borrado. Sacando la
+    tabla, cada archivo hace una sola cosa y los dos se leen sin perderse.
+
+    EL ESTADO DE PAGO llega calculado desde afuera, en el diccionario
+    EstadoPago. Se pasa así en vez de que la tabla lo busque por su cuenta
+    porque, con la búsqueda adentro, cada fila iría al almacén a preguntar por
+    su suscripción: la tabla haría tantas consultas como clientes tenga.
+*@
+
+@if (Clientes.Count == 0)
+{
+    <div class="vacio">
+        <p>@MensajeVacio</p>
+    </div>
+}
+else
+{
+    <div class="tabla-scroll">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Documento</th>
+                    <th>Teléfono</th>
+                    <th class="celda-numero">Estatura</th>
+                    <th class="celda-numero">Peso</th>
+                    <th class="celda-numero">IMC</th>
+                    <th>Objetivo</th>
+                    <th>Plan</th>
+                    <th>Pago</th>
+                    <th class="celda-acciones">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var cliente in Clientes)
+                {
+                    <tr>
+                        <td>
+                            <a href="panel/clientes/@cliente.Id">@cliente.NombreCompleto</a>
+                        </td>
+                        <td class="texto-secundario">
+                            @cliente.TipoDocumento.TextoCorto() @cliente.NumeroIdentificacion
+                        </td>
+                        <td class="texto-secundario">@cliente.Telefono</td>
+                        <td class="celda-numero">@cliente.EstaturaMetros.ToString("0.00") m</td>
+                        <td class="celda-numero">@cliente.PesoKg.ToString("0.0") kg</td>
+                        <td class="celda-numero">@cliente.Imc.ToString("0.0")</td>
+                        <td>@cliente.Objetivo.Texto()</td>
+                        <td>@NombrePlan(cliente.PlanId)</td>
+                        <td>
+                            @if (!EstadoPago.TryGetValue(cliente.Id, out var alDia))
+                            {
+                                <span class="distintivo distintivo--neutro">Sin plan</span>
+                            }
+                            else if (alDia)
+                            {
+                                <span class="distintivo distintivo--ok">Al día</span>
+                            }
+                            else
+                            {
+                                <span class="distintivo distintivo--alerta">En mora</span>
+                            }
+                        </td>
+                        <td class="celda-acciones">
+                            <button type="button" class="btn btn--contorno btn--chico"
+                                    @onclick="() => OnEditar.InvokeAsync(cliente)">
+                                Editar
+                            </button>
+                            <button type="button" class="btn btn--contorno btn--chico"
+                                    style="color: var(--rojo); border-color: var(--rojo);"
+                                    @onclick="() => OnEliminar.InvokeAsync(cliente)">
+                                Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    /// <summary>Los clientes a mostrar, ya filtrados y ordenados por quien usa el componente.</summary>
+    [Parameter, EditorRequired] public List<Cliente> Clientes { get; set; } = new();
+
+    /// <summary>
+    /// Estado de pago por cliente: la clave es el id y el valor dice si está al
+    /// día. Un cliente que no aparezca en el diccionario se muestra como
+    /// "Sin plan".
+    /// </summary>
+    [Parameter] public Dictionary<int, bool> EstadoPago { get; set; } = new();
+
+    /// <summary>Cómo se llama el plan de un id. Lo resuelve quien usa el componente.</summary>
+    [Parameter, EditorRequired] public Func<int, string> NombrePlan { get; set; } = _ => "—";
+
+    /// <summary>Qué decir cuando no hay ninguna fila. Cambia según haya o no búsqueda activa.</summary>
+    [Parameter] public string MensajeVacio { get; set; } = "Todavía no hay clientes registrados.";
+
+    [Parameter] public EventCallback<Cliente> OnEditar { get; set; }
+
+    [Parameter] public EventCallback<Cliente> OnEliminar { get; set; }
+}

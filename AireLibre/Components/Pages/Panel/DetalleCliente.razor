@@ -1,0 +1,435 @@
+@*
+    DetalleCliente.razor — Vista 8: la ficha de un cliente (/panel/clientes/{id}).
+
+    QUÉ MUESTRA: los datos de una persona y su control mensual: cómo ha ido
+    cambiando el peso y qué tanto ha avanzado hacia su objetivo.
+
+    LA RUTA lleva restricción de tipo: {Id:int}. Eso hace que /panel/clientes/abc
+    no llegue aquí con basura, sino que caiga en la página de no encontrado.
+
+    POR QUÉ EL PESO NO SE SACA DE Cliente.PesoKg: ese campo guarda el peso con
+    el que la persona llegó. La evolución vive en ControlMensual, un registro
+    por medición, para no perder el recorrido (ver ControlMensual.cs).
+
+    LA GRÁFICA DE EVOLUCIÓN está dibujada con divs y CSS, sin librerías: es una
+    fila de barras cuya altura sale de comparar cada peso contra el rango entre
+    el mínimo y el máximo del propio cliente. Con menos de dos mediciones no se
+    dibuja, porque una sola barra no muestra ninguna evolución.
+*@
+@page "/panel/clientes/{Id:int}"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ClienteService Clientes
+
+<PageTitle>@(_cliente?.NombreCompleto ?? "Cliente") — STRONGBODY</PageTitle>
+
+@if (Sesion.HaySesion)
+{
+    @if (_cliente is null)
+    {
+        <div class="panel-titulo">
+            <div>
+                <span class="eyebrow">Cliente</span>
+                <h1>Esta ficha no existe</h1>
+            </div>
+        </div>
+
+        <div class="vacio">
+            <p>No hay ningún cliente con el número @Id. Es posible que lo hayan eliminado.</p>
+            <a class="btn btn--primario" href="panel/clientes">Volver a la lista</a>
+        </div>
+    }
+    else
+    {
+        <div class="panel-titulo">
+            <div>
+                <span class="eyebrow">
+                    <a href="panel/clientes" style="color: inherit;">Clientes</a> ·
+                    ficha
+                </span>
+                <h1>@_cliente.NombreCompleto</h1>
+            </div>
+            <button type="button" class="btn btn--primario" @onclick="AbrirNuevoControl">
+                Anotar medición
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_mensaje))
+        {
+            <div class="aviso @(_operacionExitosa ? "" : "aviso--error")" role="status">
+                <p>@_mensaje</p>
+            </div>
+        }
+
+        @* --- Datos de la ficha --- *@
+        <div class="grid grid-2" style="margin-bottom: 2rem;">
+
+            <div class="tarjeta">
+                <span class="eyebrow">Datos personales</span>
+                <table class="tabla" style="margin-top: 0.5rem;">
+                    <tbody>
+                        <tr>
+                            <th style="width: 45%;">Documento</th>
+                            <td>@_cliente.TipoDocumento.Texto() @_cliente.NumeroIdentificacion</td>
+                        </tr>
+                        <tr><th>Teléfono</th><td>@_cliente.Telefono</td></tr>
+                        <tr><th>Estatura</th><td class="celda-numero">@_cliente.EstaturaMetros.ToString("0.00") m</td></tr>
+                        <tr><th>Peso al ingresar</th><td class="celda-numero">@_cliente.PesoKg.ToString("0.0") kg</td></tr>
+                        <tr><th>IMC al ingresar</th><td class="celda-numero">@_cliente.Imc.ToString("0.0")</td></tr>
+                        <tr><th>Se registró el</th><td>@_cliente.FechaRegistro.ToString("d 'de' MMMM 'de' yyyy", Espanol)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tarjeta">
+                <span class="eyebrow">Objetivo y plan</span>
+
+                <h3 style="margin-top: 0.5rem;">@_cliente.Objetivo.Texto()</h3>
+
+                @if (_ultimoControl is not null)
+                {
+                    <p class="texto-secundario texto-chico" style="margin-bottom: 1rem;">
+                        Avance estimado por el profesor en la última medición.
+                    </p>
+
+                    @* Barra de avance. El ancho es el porcentaje literal. *@
+                    <div style="background: rgba(110,110,115,0.18); border-radius: 3px; height: 12px; overflow: hidden;"
+                         role="img"
+                         aria-label="Avance del @_ultimoControl.AvanceObjetivo por ciento">
+                        <div style="width: @(_ultimoControl.AvanceObjetivo)%; height: 100%; background: var(--rojo);"></div>
+                    </div>
+                    <p class="cupo-texto" style="margin-top: 0.5rem;">
+                        <strong>@_ultimoControl.AvanceObjetivo%</strong> de avance
+                    </p>
+                }
+                else
+                {
+                    <p class="texto-secundario texto-chico">
+                        Sin mediciones todavía, así que no hay avance que mostrar.
+                    </p>
+                }
+
+                <table class="tabla" style="margin-top: 1rem;">
+                    <tbody>
+                        <tr>
+                            <th style="width: 45%;">Plan</th>
+                            <td>@Datos.NombrePlan(_cliente.PlanId)</td>
+                        </tr>
+                        @if (_suscripcion is not null)
+                        {
+                            <tr>
+                                <th>Estado de pago</th>
+                                <td>
+                                    @if (_suscripcion.AlDia)
+                                    {
+                                        <span class="distintivo distintivo--ok">Al día</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="distintivo distintivo--alerta">En mora</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Próximo pago</th>
+                                <td>@_suscripcion.FechaProximoPago.ToString("d 'de' MMMM", Espanol)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        @* --- Evolución del peso --- *@
+        @if (_controles.Count >= 2)
+        {
+            <div class="tarjeta" style="margin-bottom: 2rem;">
+                <span class="eyebrow">Evolución del peso</span>
+                <h3>De @PesoMinimo.ToString("0.0") a @PesoMaximo.ToString("0.0") kg</h3>
+                <p class="texto-secundario texto-chico">
+                    Cada barra es una medición, de la más antigua a la más reciente.
+                    La altura compara ese peso contra el rango propio de @PrimerNombre.
+                </p>
+
+                <div style="display: flex; align-items: flex-end; gap: 6px; height: 130px; margin-top: 1.25rem;">
+                    @foreach (var control in _controles.OrderBy(c => c.Fecha))
+                    {
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%;"
+                             title="@control.MesTexto: @control.PesoKg.ToString("0.0") kg">
+                            <span class="texto-chico texto-secundario"
+                                  style="text-align: center; margin-bottom: 4px;">
+                                @control.PesoKg.ToString("0.0")
+                            </span>
+                            <div style="height: @AlturaBarra(control.PesoKg)%; background: var(--negro); border-radius: 2px 2px 0 0; min-height: 4px;"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* --- Tabla del control mensual --- *@
+        <h2>Control mensual</h2>
+
+        @if (_controles.Count == 0)
+        {
+            <div class="vacio">
+                <p>
+                    Todavía no hay mediciones de @PrimerNombre. Usa "Anotar medición"
+                    para registrar la primera.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="tabla-scroll">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Mes</th>
+                            <th class="celda-numero">Peso</th>
+                            <th class="celda-numero">Diferencia</th>
+                            <th class="celda-numero">Avance</th>
+                            <th>Observación del profesor</th>
+                            <th class="celda-acciones">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var control in _controles)
+                        {
+                            var diferencia = DiferenciaConLaAnterior(control);
+
+                            <tr>
+                                <td>@control.MesTexto</td>
+                                <td class="celda-numero">@control.PesoKg.ToString("0.0") kg</td>
+                                <td class="celda-numero">
+                                    @if (diferencia is null)
+                                    {
+                                        <span class="texto-secundario">—</span>
+                                    }
+                                    else
+                                    {
+                                        @* El signo se escribe explícito: "+1,3" se
+                                           entiende de un vistazo, "1,3" no dice si subió. *@
+                                        <span class="texto-secundario">
+                                            @(diferencia > 0 ? "+" : "")@diferencia.Value.ToString("0.0") kg
+                                        </span>
+                                    }
+                                </td>
+                                <td class="celda-numero">@control.AvanceObjetivo%</td>
+                                <td class="texto-secundario">@control.Nota</td>
+                                <td class="celda-acciones">
+                                    <button type="button" class="btn btn--contorno btn--chico"
+                                            style="color: var(--rojo); border-color: var(--rojo);"
+                                            @onclick="() => EliminarControl(control.Id)">
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+}
+
+@* ---------------------------------------------------------------------------
+   MODAL PARA ANOTAR UNA MEDICIÓN
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalControl" Titulo="Anotar medición" OnCerrar="CerrarControl">
+    <ChildContent>
+        @if (!string.IsNullOrEmpty(_errorControl))
+        {
+            <div class="aviso aviso--error" role="alert">
+                <p>@_errorControl</p>
+            </div>
+        }
+
+        <div class="campo">
+            <label for="c-fecha">Fecha de la medición</label>
+            <input id="c-fecha" type="date" @bind="_fechaControl" />
+        </div>
+
+        <div class="formulario-grid">
+            <div class="campo">
+                <label for="c-peso">Peso (kilogramos)</label>
+                <input id="c-peso" type="number" step="0.1" min="20" max="300" @bind="_pesoControl" />
+            </div>
+
+            <div class="campo">
+                <label for="c-avance">Avance hacia el objetivo (0 a 100)</label>
+                <input id="c-avance" type="number" step="5" min="0" max="100" @bind="_avanceControl" />
+            </div>
+        </div>
+
+        <div class="campo">
+            <label for="c-nota">Observación</label>
+            <input id="c-nota" type="text" placeholder="Cómo lo viste este mes"
+                   @bind="_notaControl" @bind:event="oninput" />
+        </div>
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CerrarControl">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="GuardarControl">Anotar</button>
+    </Pie>
+</Modal>
+
+@code {
+    /// <summary>Id del cliente, tomado de la dirección. La ruta exige que sea un entero.</summary>
+    [Parameter] public int Id { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Espanol = new("es-CO");
+
+    private Cliente? _cliente;
+    private Suscripcion? _suscripcion;
+    private List<ControlMensual> _controles = new();
+
+    private string _mensaje = string.Empty;
+    private bool _operacionExitosa;
+
+    // Formulario de la medición
+    private bool _modalControl;
+    private DateTime _fechaControl = DateTime.Today;
+    private decimal _pesoControl;
+    private int _avanceControl;
+    private string _notaControl = string.Empty;
+    private string _errorControl = string.Empty;
+
+    /*
+     * OJO: base.OnInitialized() va de primero. Es lo que comprueba la sesión
+     * (ver PaginaPanel.cs). Sin esa llamada, esta página quedaría desprotegida.
+     */
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (!Sesion.HaySesion) return;
+
+        Cargar();
+    }
+
+    /// <summary>
+    /// Se ejecuta también cuando cambia el Id de la dirección sin recargar la
+    /// página, por ejemplo al pasar de una ficha a otra desde un enlace. Sin
+    /// esto, la pantalla seguiría mostrando el cliente anterior.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (!Sesion.HaySesion) return;
+        Cargar();
+    }
+
+    /// <summary>Relee del almacén los datos de esta ficha.</summary>
+    private void Cargar()
+    {
+        _cliente = Datos.BuscarCliente(Id);
+
+        if (_cliente is null)
+        {
+            _suscripcion = null;
+            _controles = new List<ControlMensual>();
+            return;
+        }
+
+        _suscripcion = Datos.BuscarSuscripcionDeCliente(_cliente.Id);
+        _controles = Clientes.ControlesDe(_cliente.Id);   // del más reciente al más antiguo
+    }
+
+    // --- Datos derivados ------------------------------------------------------
+
+    private ControlMensual? _ultimoControl => _controles.FirstOrDefault();
+
+    private string PrimerNombre => _cliente?.NombreCompleto.Split(' ').First() ?? "";
+
+    private decimal PesoMinimo => _controles.Count == 0 ? 0 : _controles.Min(c => c.PesoKg);
+    private decimal PesoMaximo => _controles.Count == 0 ? 0 : _controles.Max(c => c.PesoKg);
+
+    /// <summary>
+    /// Altura de una barra, en porcentaje. Se compara el peso contra el rango
+    /// propio del cliente (su mínimo y su máximo) y no contra una escala fija:
+    /// así se ve la variación aunque sean tres kilos de diferencia.
+    ///
+    /// El rango va de 25 a 100 y no de 0 a 100, para que la barra más baja
+    /// siga siendo visible en vez de desaparecer.
+    /// </summary>
+    private decimal AlturaBarra(decimal peso)
+    {
+        var rango = PesoMaximo - PesoMinimo;
+
+        // Si todas las mediciones dan el mismo peso, no hay variación que
+        // mostrar: todas las barras van iguales.
+        if (rango == 0) return 100;
+
+        return 25 + ((peso - PesoMinimo) / rango) * 75;
+    }
+
+    /// <summary>
+    /// Cuánto cambió el peso respecto de la medición ANTERIOR en el tiempo.
+    /// Devuelve null para la primera medición, que no tiene con qué compararse.
+    /// </summary>
+    private decimal? DiferenciaConLaAnterior(ControlMensual control)
+    {
+        var anterior = _controles
+            .Where(c => c.Fecha < control.Fecha)
+            .OrderByDescending(c => c.Fecha)
+            .FirstOrDefault();
+
+        return anterior is null ? null : control.PesoKg - anterior.PesoKg;
+    }
+
+    // --- Acciones -------------------------------------------------------------
+
+    private void AbrirNuevoControl()
+    {
+        // Se propone el último peso conocido, que es lo que casi siempre se va a
+        // corregir en unos pocos gramos. Escribir desde cero sería más trabajo.
+        _fechaControl = DateTime.Today;
+        _pesoControl = _ultimoControl?.PesoKg ?? _cliente?.PesoKg ?? 0;
+        _avanceControl = _ultimoControl?.AvanceObjetivo ?? 0;
+        _notaControl = string.Empty;
+        _errorControl = string.Empty;
+        _mensaje = string.Empty;
+        _modalControl = true;
+    }
+
+    private void CerrarControl()
+    {
+        _modalControl = false;
+        _errorControl = string.Empty;
+    }
+
+    private void GuardarControl()
+    {
+        if (_cliente is null) return;
+
+        var resultado = Clientes.AgregarControlMensual(
+            _cliente.Id,
+            DateOnly.FromDateTime(_fechaControl),
+            _pesoControl,
+            _avanceControl,
+            _notaControl);
+
+        if (resultado.Exito)
+        {
+            _mensaje = resultado.Mensaje;
+            _operacionExitosa = true;
+            CerrarControl();
+            Cargar();   // releer para que la tabla y la gráfica incluyan la nueva
+        }
+        else
+        {
+            _errorControl = resultado.Mensaje;
+        }
+    }
+
+    private void EliminarControl(int controlId)
+    {
+        var resultado = Clientes.EliminarControlMensual(controlId);
+
+        _mensaje = resultado.Mensaje;
+        _operacionExitosa = resultado.Exito;
+        Cargar();
+    }
+}

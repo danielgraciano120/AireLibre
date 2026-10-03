@@ -1,0 +1,335 @@
+@*
+    Clientes.razor — Vista 7: el registro de clientes (/panel/clientes).
+
+    QUÉ HACE: el CRUD completo. Listar con búsqueda, crear, editar y eliminar.
+
+    QUIÉN VALIDA: ClienteService, siempre. Esta vista no comprueba documentos
+    repetidos ni rangos de estatura: manda los datos y muestra la respuesta. Si
+    la validación estuviera aquí, habría que repetirla en la pantalla de
+    solicitudes, que también crea clientes.
+
+    POR QUÉ SE EDITA UNA COPIA: el formulario trabaja sobre _formulario, que es
+    una copia de la ficha (Cliente.Copia()). Sin la copia, cada tecla escrita
+    cambiaría el cliente guardado en vivo y "Cancelar" no desharía nada, porque
+    el cambio ya estaría hecho.
+
+    LA TABLA está en el componente compartido TablaClientes, para que este
+    archivo no cargue además con el dibujado de las filas.
+*@
+@page "/panel/clientes"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ClienteService ServicioClientes
+
+<PageTitle>Clientes — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Registro</span>
+        <h1>Clientes</h1>
+    </div>
+    <button type="button" class="btn btn--primario" @onclick="AbrirCreacion">
+        Registrar cliente
+    </button>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @if (!string.IsNullOrEmpty(_mensaje))
+    {
+        <div class="aviso @(_operacionExitosa ? "" : "aviso--error")" role="status">
+            <p>@_mensaje</p>
+        </div>
+    }
+
+    @* --- Búsqueda --- *@
+    <div class="tarjeta" style="margin-bottom: 1.5rem;">
+        <div class="campo" style="margin-bottom: 0;">
+            <label for="busqueda">Buscar cliente</label>
+            <input id="busqueda" type="search"
+                   placeholder="Por nombre o por número de documento"
+                   @bind="_busqueda" @bind:event="oninput" />
+        </div>
+        <p class="texto-secundario texto-chico" style="margin: 0.6rem 0 0;">
+            @ClientesFiltrados.Count de @Datos.Clientes.Count
+            @(Datos.Clientes.Count == 1 ? "cliente" : "clientes")
+        </p>
+    </div>
+
+    <TablaClientes Clientes="ClientesFiltrados"
+                   EstadoPago="EstadoDePago"
+                   NombrePlan="Datos.NombrePlan"
+                   MensajeVacio="@MensajeTablaVacia"
+                   OnEditar="AbrirEdicion"
+                   OnEliminar="PedirConfirmacion" />
+}
+
+@* ---------------------------------------------------------------------------
+   MODAL DE ALTA Y EDICIÓN
+   Es el mismo formulario para los dos casos: lo único que cambia es el título,
+   el texto del botón y si el objeto ya tiene Id. Duplicarlo significaría
+   arreglar cada campo dos veces.
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalFormulario"
+       Titulo="@(EsEdicion ? "Editar cliente" : "Registrar cliente")"
+       Ancho="true"
+       OnCerrar="CerrarFormulario">
+
+    <ChildContent>
+        @if (!string.IsNullOrEmpty(_errorFormulario))
+        {
+            <div class="aviso aviso--error" role="alert">
+                <p>@_errorFormulario</p>
+            </div>
+        }
+
+        <div class="campo">
+            <label for="f-nombre">Nombre completo</label>
+            <input id="f-nombre" type="text" @bind="_formulario.NombreCompleto" @bind:event="oninput" />
+        </div>
+
+        <div class="formulario-grid">
+            <div class="campo">
+                <label for="f-tipodoc">Tipo de documento</label>
+                <select id="f-tipodoc" @bind="_formulario.TipoDocumento">
+                    <option value="@TipoDocumento.Cedula">Cédula</option>
+                    <option value="@TipoDocumento.TarjetaIdentidad">Tarjeta de identidad</option>
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="f-documento">Número de identificación</label>
+                <input id="f-documento" type="text" inputmode="numeric"
+                       @bind="_formulario.NumeroIdentificacion" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="campo">
+            <label for="f-telefono">Teléfono</label>
+            <input id="f-telefono" type="tel" @bind="_formulario.Telefono" @bind:event="oninput" />
+        </div>
+
+        <div class="formulario-grid">
+            <div class="campo">
+                <label for="f-estatura">Estatura (metros)</label>
+                <input id="f-estatura" type="number" step="0.01" min="1" max="2.5"
+                       placeholder="1.72" @bind="_formulario.EstaturaMetros" />
+            </div>
+
+            <div class="campo">
+                <label for="f-peso">Peso (kilogramos)</label>
+                <input id="f-peso" type="number" step="0.1" min="20" max="300"
+                       placeholder="68.5" @bind="_formulario.PesoKg" />
+            </div>
+        </div>
+
+        <div class="formulario-grid">
+            <div class="campo">
+                <label for="f-objetivo">Objetivo</label>
+                <select id="f-objetivo" @bind="_formulario.Objetivo">
+                    @foreach (var objetivo in Enum.GetValues<Objetivo>())
+                    {
+                        <option value="@objetivo">@objetivo.Texto()</option>
+                    }
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="f-plan">Plan</label>
+                <select id="f-plan" @bind="_formulario.PlanId">
+                    @foreach (var plan in Datos.Planes)
+                    {
+                        <option value="@plan.Id">@plan.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (!EsEdicion)
+        {
+            <p class="texto-secundario texto-chico">
+                Al registrarlo se le abre la suscripción del plan elegido, marcada
+                como <strong>en mora</strong> hasta que pague. El estado se cambia
+                en la pantalla de pagos.
+            </p>
+        }
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CerrarFormulario">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="Guardar">
+            @(EsEdicion ? "Guardar cambios" : "Registrar")
+        </button>
+    </Pie>
+
+</Modal>
+
+@* ---------------------------------------------------------------------------
+   CONFIRMACIÓN DE BORRADO
+   Eliminar no se hace de un clic: se dice qué se va a borrar y qué se lleva
+   por delante, antes de preguntar.
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalEliminar" Titulo="Eliminar cliente" OnCerrar="CancelarEliminacion">
+    <ChildContent>
+        @if (_clienteAEliminar is not null)
+        {
+            <p>
+                Vas a eliminar a <strong>@_clienteAEliminar.NombreCompleto</strong>
+                del registro de clientes.
+            </p>
+            <p class="texto-secundario texto-chico">
+                Se borran también su suscripción y sus @ServicioClientes.ControlesDe(_clienteAEliminar.Id).Count
+                @(ServicioClientes.ControlesDe(_clienteAEliminar.Id).Count == 1 ? "medición mensual" : "mediciones mensuales").
+                Sus reservas NO se borran: esa persona sí ocupó el cupo ese día, así
+                que quedan como reservas de alguien sin registrar.
+            </p>
+            <p class="texto-secundario texto-chico">Esta acción no se puede deshacer.</p>
+        }
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CancelarEliminacion">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="ConfirmarEliminacion">
+            Sí, eliminar
+        </button>
+    </Pie>
+</Modal>
+
+@code {
+    // --- Estado de la pantalla ----------------------------------------------
+
+    private string _busqueda = string.Empty;
+
+    private string _mensaje = string.Empty;
+    private bool _operacionExitosa;
+
+    // Formulario de alta y edición
+    private bool _modalFormulario;
+    private Cliente _formulario = new();
+    private string _errorFormulario = string.Empty;
+
+    // Confirmación de borrado
+    private bool _modalEliminar;
+    private Cliente? _clienteAEliminar;
+
+    /// <summary>
+    /// Es edición si la ficha del formulario ya tiene id; es alta si el id
+    /// todavía es cero, porque los ids los asigna el almacén al guardar.
+    /// </summary>
+    private bool EsEdicion => _formulario.Id != 0;
+
+    // --- Datos derivados ------------------------------------------------------
+
+    /// <summary>
+    /// Los clientes que pasan el filtro de búsqueda, en orden alfabético.
+    /// Busca por nombre o por documento, sin distinguir mayúsculas ni tildes
+    /// de más: escribir "marin" encuentra a "Laura Sofía Marín".
+    /// </summary>
+    private List<Cliente> ClientesFiltrados
+    {
+        get
+        {
+            var texto = _busqueda.Trim();
+
+            var consulta = Datos.Clientes.AsEnumerable();
+
+            if (texto.Length > 0)
+            {
+                consulta = consulta.Where(c =>
+                    c.NombreCompleto.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                    c.NumeroIdentificacion.Contains(texto, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return consulta.OrderBy(c => c.NombreCompleto).ToList();
+        }
+    }
+
+    /// <summary>
+    /// El estado de pago de cada cliente, resuelto de una sola pasada. Se arma
+    /// aquí y se le pasa a la tabla para que ella no tenga que ir al almacén
+    /// una vez por fila.
+    /// </summary>
+    private Dictionary<int, bool> EstadoDePago =>
+        Datos.Suscripciones.ToDictionary(s => s.ClienteId, s => s.AlDia);
+
+    private string MensajeTablaVacia => _busqueda.Trim().Length > 0
+        ? $"Ningún cliente coincide con \"{_busqueda.Trim()}\"."
+        : "Todavía no hay clientes registrados. Usa el botón de arriba para crear el primero.";
+
+    // --- Acciones del formulario ---------------------------------------------
+
+    private void AbrirCreacion()
+    {
+        // Ficha nueva, con el plan mensual preseleccionado por ser el más común.
+        _formulario = new Cliente { PlanId = 3 };
+        _errorFormulario = string.Empty;
+        _mensaje = string.Empty;
+        _modalFormulario = true;
+    }
+
+    /// <summary>
+    /// Abre la edición sobre una COPIA de la ficha. Ver la explicación en el
+    /// encabezado del archivo y en Cliente.Copia().
+    /// </summary>
+    private void AbrirEdicion(Cliente cliente)
+    {
+        _formulario = cliente.Copia();
+        _errorFormulario = string.Empty;
+        _mensaje = string.Empty;
+        _modalFormulario = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        _modalFormulario = false;
+        _errorFormulario = string.Empty;
+    }
+
+    private void Guardar()
+    {
+        // Es el servicio el que decide si los datos sirven, no esta vista.
+        var resultado = EsEdicion
+            ? ServicioClientes.ActualizarCliente(_formulario)
+            : ServicioClientes.CrearCliente(_formulario);
+
+        if (resultado.Exito)
+        {
+            _mensaje = resultado.Mensaje;
+            _operacionExitosa = true;
+            CerrarFormulario();
+        }
+        else
+        {
+            // El modal sigue abierto con lo escrito, para poder corregir sin
+            // volver a llenar todo el formulario.
+            _errorFormulario = resultado.Mensaje;
+        }
+    }
+
+    // --- Acciones de borrado --------------------------------------------------
+
+    private void PedirConfirmacion(Cliente cliente)
+    {
+        _clienteAEliminar = cliente;
+        _mensaje = string.Empty;
+        _modalEliminar = true;
+    }
+
+    private void CancelarEliminacion()
+    {
+        _modalEliminar = false;
+        _clienteAEliminar = null;
+    }
+
+    private void ConfirmarEliminacion()
+    {
+        if (_clienteAEliminar is null) return;
+
+        var resultado = ServicioClientes.EliminarCliente(_clienteAEliminar.Id);
+
+        _mensaje = resultado.Mensaje;
+        _operacionExitosa = resultado.Exito;
+        CancelarEliminacion();
+    }
+}

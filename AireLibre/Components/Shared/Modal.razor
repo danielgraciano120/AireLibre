@@ -1,0 +1,128 @@
+@*
+    Modal.razor — Ventana emergente reutilizable.
+
+    QUÉ HACE: dibuja una caja centrada sobre un fondo oscuro. No sabe nada del
+    contenido: quien lo usa le pasa el título, el cuerpo y los botones del pie.
+
+    CÓMO SE USA:
+
+        <Modal Visible="@mostrar" Titulo="Separar cupo" OnCerrar="Cerrar">
+            <ChildContent>
+                <p>Contenido del modal</p>
+            </ChildContent>
+            <Pie>
+                <button class="btn btn--contorno" @onclick="Cerrar">Cancelar</button>
+                <button class="btn btn--primario" @onclick="Guardar">Guardar</button>
+            </Pie>
+        </Modal>
+
+    ChildContent y Pie son RenderFragment: trozos de marcado que el componente
+    padre le presta a este.
+
+    REGLA DE RAZOR QUE HAY QUE RECORDAR: si se usa <Pie>, el cuerpo TAMBIÉN
+    tiene que ir envuelto en <ChildContent>. Razor no deja mezclar contenido
+    suelto con fragmentos con nombre; si se intenta, el error es
+    "Unrecognized child content inside component 'Modal'".
+    Solo se puede omitir <ChildContent> cuando el modal no lleva pie.
+
+    SE CIERRA de tres formas, todas equivalentes: la X del encabezado, un clic
+    en el fondo oscuro y la tecla Escape. Las tres llaman a OnCerrar, así que
+    quien lo usa solo tiene que implementar ese método.
+
+    ACCESIBILIDAD: lleva role="dialog" y aria-modal para que un lector de
+    pantalla lo anuncie como ventana, y se le da el foco al abrirse para que la
+    tecla Escape funcione sin tener que hacer clic primero.
+*@
+
+@if (Visible)
+{
+    @* El fondo oscuro. Un clic aquí cierra el modal. *@
+    <div class="modal-fondo" @onclick="Cerrar">
+
+        @*
+            La caja. El @onclick:stopPropagation es imprescindible: sin él, un
+            clic dentro de la caja subiría hasta el fondo y cerraría el modal
+            mientras la persona está escribiendo.
+
+            tabindex="-1" hace que la caja pueda recibir el foco por código
+            (no con el tabulador), que es lo que permite escuchar la tecla
+            Escape sobre ella.
+        *@
+        <div class="modal-caja @(Ancho ? "modal-caja--ancho" : "")"
+             role="dialog"
+             aria-modal="true"
+             aria-label="@Titulo"
+             tabindex="-1"
+             @ref="_caja"
+             @onclick:stopPropagation="true"
+             @onkeydown="AlPresionarTecla">
+
+            <div class="modal-header">
+                <h3>@Titulo</h3>
+                <button type="button" class="modal-cerrar" @onclick="Cerrar" aria-label="Cerrar">
+                    &times;
+                </button>
+            </div>
+
+            <div class="modal-cuerpo">
+                @ChildContent
+            </div>
+
+            @if (Pie is not null)
+            {
+                <div class="modal-pie">
+                    @Pie
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Si el modal se ve o no. Lo controla el componente padre.</summary>
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>Título del encabezado. También lo usa el lector de pantalla.</summary>
+    [Parameter] public string Titulo { get; set; } = string.Empty;
+
+    /// <summary>Contenido del cuerpo.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Botones del pie. Si no se pasa, el pie no se dibuja.</summary>
+    [Parameter] public RenderFragment? Pie { get; set; }
+
+    /// <summary>Se llama cuando la persona cierra el modal por cualquier vía.</summary>
+    [Parameter] public EventCallback OnCerrar { get; set; }
+
+    /// <summary>Usa la caja ancha, para formularios con varias columnas.</summary>
+    [Parameter] public bool Ancho { get; set; }
+
+    // Referencia al elemento de la caja, para poder darle el foco al abrirse.
+    private ElementReference _caja;
+
+    // Recuerda si el modal ya estaba visible en el render anterior, para darle
+    // el foco solo en el momento en que se abre y no en cada redibujado.
+    private bool _estabaVisible;
+
+    protected override async Task OnAfterRenderAsync(bool primerRender)
+    {
+        if (Visible && !_estabaVisible)
+        {
+            // Al abrirse, el foco pasa a la caja. Así la tecla Escape funciona
+            // de inmediato y quien navega con teclado no queda atrás del modal.
+            await _caja.FocusAsync();
+        }
+
+        _estabaVisible = Visible;
+    }
+
+    private async Task Cerrar() => await OnCerrar.InvokeAsync();
+
+    private async Task AlPresionarTecla(KeyboardEventArgs argumentos)
+    {
+        if (argumentos.Key == "Escape")
+        {
+            await Cerrar();
+        }
+    }
+}

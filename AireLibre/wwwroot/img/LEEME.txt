@@ -1,0 +1,54 @@
+FOTOS DEL SITIO
+===============
+
+El CSS referencia estas fotos POR NOMBRE (bloque 6 de wwwroot/css/app.css),
+asi que los archivos deben llamarse exactamente asi. El Razor no las menciona:
+solo aplica una clase, y el nombre del archivo vive en el CSS. Cambiar una
+foto es reemplazar el archivo, nada mas.
+
+ARCHIVO                 DONDE SE USA                        FORMATO IDEAL
+-----------------------------------------------------------------------------
+portada-grupo.jpg       Portada, a todo el ancho            apaisada, >=1600 px
+balon-medicinal.jpg     "Asi se ve una clase"               apaisada 4:3
+peso-muerto.jpg         "Asi se ve una clase"               apaisada 4:3
+volumen.jpg             Ficha del objetivo Volumen          VERTICAL 2:3
+bajar-grasa.jpg         Ficha del objetivo Definicion       VERTICAL 2:3
+tonificada.jpg          Ficha del objetivo Tonificar        VERTICAL 2:3
+salud-vitalidad.jpg     Ficha del objetivo Salud y vitalidad VERTICAL 2:3
+
+SI UN ARCHIVO NO ESTA (o esta danado), no se rompe nada: el navegador ignora
+esa capa y se ve el degradado que va debajo, que es el marcador de posicion
+que trae el sitio de fabrica.
+
+REGLAS PARA REEMPLAZARLAS
+-------------------------
+
+1. QUE SEAN JPEG DE VERDAD. La extension .jpg no convierte el archivo. Si se
+   descarga un PNG o un WEBP y se le cambia el nombre a .jpg, el navegador
+   igual lo muestra (adivina el formato), pero las herramientas de .NET no lo
+   pueden abrir y el archivo suele pesar mucho mas de lo necesario.
+
+2. QUE PESEN POCO. Por debajo de 300 KB cada una. Son imagenes de fondo y no
+   hay ninguna libreria que las optimice. Una foto de 2 MB tarda en cargar y
+   la portada se ve gris mientras tanto.
+
+3. QUE TENGAN RESOLUCION SUFICIENTE. Las fichas de objetivo miden alrededor de
+   400 px de alto en pantalla grande, asi que una foto de menos de 600 px de
+   ancho se va a ver borrosa.
+
+4. QUE SEAN VERTICALES las de los cuatro objetivos. Las fichas son 2:3
+   (mas altas que anchas). Una foto apaisada funciona, pero el navegador le
+   recorta los lados y puede cortar justo lo que interesa.
+
+SOBRE EL VELO DE COLOR
+----------------------
+
+Encima de cada foto van DOS capas, y ninguna es decoracion:
+
+  - El tinte (variable --tinte-foto): unifica fotos de origenes distintos para
+    que se vean como un conjunto y no como un collage.
+  - El velo de .ficha::before: oscurece la parte de abajo, que es donde va el
+    texto. Es lo que garantiza que el texto blanco se lea sobre CUALQUIER foto,
+    sin importar que tan clara sea.
+
+No quitarlos.

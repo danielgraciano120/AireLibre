@@ -1,0 +1,153 @@
+@*
+    Resumen.razor — Vista 5: el resumen del panel (/panel).
+
+    QUÉ MUESTRA: los cuatro contadores que el profesor necesita ver de entrada
+    al abrir el panel: cupos separados hoy, clientes registrados, pagos
+    pendientes y solicitudes sin atender.
+
+    Los tres últimos son ACCIONABLES (hay algo que hacer con ellos), así que
+    cada tarjeta es un enlace a la pantalla donde se resuelve. Los que están en
+    cero no se pintan de rojo: no hay nada pendiente, y un cero en rojo sería
+    una alarma falsa.
+
+    Los números se calculan aquí a partir del almacén y de los servicios, en
+    propiedades de solo lectura. No se guardan en campos: así siempre reflejan
+    el estado actual sin tener que refrescarlos a mano.
+*@
+@page "/panel"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ReservaService Reservas
+@inject InventarioService Inventario
+
+<PageTitle>Panel — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Panel de administración</span>
+        <h1>Resumen</h1>
+    </div>
+    <p class="texto-secundario texto-chico" style="margin: 0;">@FechaDeHoy</p>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @* --- Los cuatro contadores --- *@
+    <div class="grid grid-4" style="margin-bottom: 2.5rem;">
+
+        <a class="tarjeta" href="panel/clases" style="text-decoration: none; color: inherit;">
+            <div class="contador">
+                <span class="contador-numero">@CuposSeparadosHoy</span>
+                <span class="contador-etiqueta">cupos separados hoy</span>
+            </div>
+        </a>
+
+        <a class="tarjeta" href="panel/clientes" style="text-decoration: none; color: inherit;">
+            <div class="contador">
+                <span class="contador-numero">@Datos.Clientes.Count</span>
+                <span class="contador-etiqueta">clientes registrados</span>
+            </div>
+        </a>
+
+        @* Rojo solo si hay algo pendiente. Un cero en rojo alarmaría sin motivo. *@
+        <a class="tarjeta @(PagosPendientes > 0 ? "contador--alerta" : "")" href="panel/pagos"
+           style="text-decoration: none; color: inherit;">
+            <div class="contador">
+                <span class="contador-numero">@PagosPendientes</span>
+                <span class="contador-etiqueta">pagos pendientes</span>
+            </div>
+        </a>
+
+        <a class="tarjeta @(SolicitudesSinAtender > 0 ? "contador--alerta" : "")" href="panel/solicitudes"
+           style="text-decoration: none; color: inherit;">
+            <div class="contador">
+                <span class="contador-numero">@SolicitudesSinAtender</span>
+                <span class="contador-etiqueta">solicitudes sin atender</span>
+            </div>
+        </a>
+
+    </div>
+
+    @* --- Ocupación de las clases de hoy --- *@
+    <h2>Clases de hoy</h2>
+    <div class="grid grid-3" style="margin-bottom: 2.5rem;">
+        @foreach (var horario in Datos.Horarios.OrderBy(h => h.Hora))
+        {
+            var grupo = Datos.BuscarGrupo(horario.GrupoId)!;
+            var ocupados = Reservas.ContarOcupados(horario.Id, Hoy);
+            var libres = horario.CupoMaximo - ocupados;
+
+            <div class="tarjeta tarjeta--@grupo.Jornada.ClaseCss()">
+                <span class="eyebrow">@grupo.Nombre</span>
+                <h3>@horario.HoraTexto</h3>
+
+                <div class="cupos @(grupo.Jornada == Jornada.Noche ? "cupos--noche" : "") @(libres == 0 ? "cupos--lleno" : "")">
+                    <div class="cupos-marcas" aria-hidden="true">
+                        @for (var i = 0; i < horario.CupoMaximo; i++)
+                        {
+                            <span class="marca-cupo @(i < ocupados ? "marca-cupo--ocupada" : "")"></span>
+                        }
+                    </div>
+                    <p class="cupo-texto">
+                        <strong>@ocupados</strong> de @horario.CupoMaximo inscritos
+                    </p>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* --- Dos avisos que conviene tener a la vista --- *@
+    <div class="grid grid-2">
+
+        <div class="tarjeta">
+            <span class="eyebrow">Pagos</span>
+            <h3>@PaganManana @(PaganManana == 1 ? "cliente paga" : "clientes pagan") mañana</h3>
+            <p class="texto-secundario">
+                @if (PaganManana == 0)
+                {
+                    <text>Ningún plan vence mañana. Nada que recordar hoy.</text>
+                }
+                else
+                {
+                    <text>Conviene recordárselos hoy, antes de que se les venza el plan.</text>
+                }
+            </p>
+            <a class="btn btn--contorno btn--chico" href="panel/notificaciones">Ver notificaciones</a>
+        </div>
+
+        <div class="tarjeta">
+            <span class="eyebrow">Inventario</span>
+            <h3>@ParaReponer @(ParaReponer == 1 ? "herramienta marcada" : "herramientas marcadas") para reponer</h3>
+            <p class="texto-secundario">
+                @Inventario.TotalUnidades() unidades en total, repartidas en
+                @Datos.Herramientas.Count tipos de implemento.
+            </p>
+            <a class="btn btn--contorno btn--chico" href="panel/inventario">Ver inventario</a>
+        </div>
+
+    </div>
+}
+
+@code {
+    private DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    /// <summary>La fecha de hoy escrita completa, en español.</summary>
+    private string FechaDeHoy =>
+        DateTime.Today.ToString("dddd d 'de' MMMM 'de' yyyy",
+            new System.Globalization.CultureInfo("es-CO"));
+
+    private int CuposSeparadosHoy => Datos.Reservas.Count(r => r.FechaClase == Hoy);
+
+    // "Pendiente" es quien NO está marcado como al día. Es una marca manual del
+    // profesor, no el resultado de ninguna transacción (ver Suscripcion.cs).
+    private int PagosPendientes => Datos.Suscripciones.Count(s => !s.AlDia);
+
+    private int SolicitudesSinAtender =>
+        Datos.Solicitudes.Count(s => s.Estado == EstadoSolicitud.Pendiente);
+
+    private int PaganManana =>
+        Datos.Suscripciones.Count(s => s.FechaProximoPago == Hoy.AddDays(1));
+
+    private int ParaReponer => Inventario.ContarParaReponer();
+}

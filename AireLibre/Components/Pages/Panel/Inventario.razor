@@ -1,0 +1,302 @@
+@*
+    Inventario.razor — Vista 10: el inventario de herramientas (/panel/inventario).
+
+    QUÉ HACE: el CRUD completo de los implementos con los que se entrena.
+
+    RECORDATORIO DEL MODELO: cada registro es un TIPO de implemento, no una
+    unidad. "Pesas rusas, cantidad 12" es una sola fila con doce unidades, y el
+    estado describe cómo está el lote completo (ver Herramienta.cs).
+
+    QUIÉN VALIDA: InventarioService. Esta vista no comprueba nombres repetidos
+    ni cantidades: manda los datos y muestra la respuesta.
+
+    POR QUÉ SE EDITA UNA COPIA: igual que en clientes, el formulario trabaja
+    sobre Herramienta.Copia(), para que cancelar no deje cambios aplicados.
+
+    ORDEN DE LA TABLA: primero lo que hay que reponer. Es una lista de compras
+    tanto como un inventario, y lo urgente va arriba.
+*@
+@page "/panel/inventario"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject InventarioService ServicioInventario
+
+<PageTitle>Inventario — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Herramientas</span>
+        <h1>Inventario</h1>
+    </div>
+    <button type="button" class="btn btn--primario" @onclick="AbrirCreacion">
+        Agregar herramienta
+    </button>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @if (!string.IsNullOrEmpty(_mensaje))
+    {
+        <div class="aviso @(_operacionExitosa ? "" : "aviso--error")" role="status">
+            <p>@_mensaje</p>
+        </div>
+    }
+
+    @* --- Tres cifras de cabecera --- *@
+    <div class="grid grid-3" style="margin-bottom: 2rem;">
+        <div class="tarjeta">
+            <div class="contador">
+                <span class="contador-numero">@_herramientas.Count</span>
+                <span class="contador-etiqueta">tipos de implemento</span>
+            </div>
+        </div>
+
+        <div class="tarjeta">
+            <div class="contador">
+                <span class="contador-numero">@ServicioInventario.TotalUnidades()</span>
+                <span class="contador-etiqueta">unidades en total</span>
+            </div>
+        </div>
+
+        <div class="tarjeta @(ParaReponer > 0 ? "contador--alerta" : "")">
+            <div class="contador">
+                <span class="contador-numero">@ParaReponer</span>
+                <span class="contador-etiqueta">para reponer</span>
+            </div>
+        </div>
+    </div>
+
+    @if (_herramientas.Count == 0)
+    {
+        <div class="vacio">
+            <p>El inventario está vacío. Usa el botón de arriba para agregar la primera herramienta.</p>
+        </div>
+    }
+    else
+    {
+        <div class="tabla-scroll">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Herramienta</th>
+                        <th class="celda-numero">Cantidad</th>
+                        <th>Estado</th>
+                        <th class="celda-acciones">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var herramienta in HerramientasOrdenadas)
+                    {
+                        <tr>
+                            <td>@herramienta.Nombre</td>
+                            <td class="celda-numero">@herramienta.Cantidad</td>
+                            <td>
+                                <span class="distintivo @herramienta.Estado.ClaseDistintivo()">
+                                    @herramienta.Estado.Texto()
+                                </span>
+                            </td>
+                            <td class="celda-acciones">
+                                <button type="button" class="btn btn--contorno btn--chico"
+                                        @onclick="() => AbrirEdicion(herramienta)">
+                                    Editar
+                                </button>
+                                <button type="button" class="btn btn--contorno btn--chico"
+                                        style="color: var(--rojo); border-color: var(--rojo);"
+                                        @onclick="() => PedirConfirmacion(herramienta)">
+                                    Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@* ---------------------------------------------------------------------------
+   MODAL DE ALTA Y EDICIÓN — el mismo formulario para los dos casos.
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalFormulario"
+       Titulo="@(EsEdicion ? "Editar herramienta" : "Agregar herramienta")"
+       OnCerrar="CerrarFormulario">
+
+    <ChildContent>
+        @if (!string.IsNullOrEmpty(_errorFormulario))
+        {
+            <div class="aviso aviso--error" role="alert">
+                <p>@_errorFormulario</p>
+            </div>
+        }
+
+        <div class="campo">
+            <label for="h-nombre">Nombre</label>
+            <input id="h-nombre" type="text" placeholder="Pesas rusas, colchonetas…"
+                   @bind="_formulario.Nombre" @bind:event="oninput" />
+        </div>
+
+        <div class="formulario-grid">
+            <div class="campo">
+                <label for="h-cantidad">Cantidad</label>
+                <input id="h-cantidad" type="number" min="0" max="9999" @bind="_formulario.Cantidad" />
+            </div>
+
+            <div class="campo">
+                <label for="h-estado">Estado</label>
+                <select id="h-estado" @bind="_formulario.Estado">
+                    @foreach (var estado in Enum.GetValues<EstadoHerramienta>())
+                    {
+                        <option value="@estado">@estado.Texto()</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <p class="texto-secundario texto-chico">
+            Una fila es un tipo de implemento, no una unidad: el estado describe
+            cómo está el lote completo. Si un lote se parte en dos condiciones
+            distintas, conviene crear dos registros.
+        </p>
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CerrarFormulario">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="Guardar">
+            @(EsEdicion ? "Guardar cambios" : "Agregar")
+        </button>
+    </Pie>
+
+</Modal>
+
+@* --- Confirmación de borrado --- *@
+<Modal Visible="_modalEliminar" Titulo="Eliminar herramienta" OnCerrar="CancelarEliminacion">
+    <ChildContent>
+        @if (_herramientaAEliminar is not null)
+        {
+            <p>
+                Vas a sacar <strong>@_herramientaAEliminar.Nombre</strong>
+                (@_herramientaAEliminar.Cantidad
+                @(_herramientaAEliminar.Cantidad == 1 ? "unidad" : "unidades"))
+                del inventario.
+            </p>
+            <p class="texto-secundario texto-chico">
+                Si lo que pasó es que se dañaron, es mejor cambiarles el estado a
+                "Para reponer" en vez de borrarlas: así quedan en la lista de lo
+                que hay que comprar.
+            </p>
+        }
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CancelarEliminacion">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="ConfirmarEliminacion">Sí, eliminar</button>
+    </Pie>
+</Modal>
+
+@code {
+    private List<Herramienta> _herramientas = new();
+
+    private string _mensaje = string.Empty;
+    private bool _operacionExitosa;
+
+    private bool _modalFormulario;
+    private Herramienta _formulario = new();
+    private string _errorFormulario = string.Empty;
+
+    private bool _modalEliminar;
+    private Herramienta? _herramientaAEliminar;
+
+    private bool EsEdicion => _formulario.Id != 0;
+
+    private int ParaReponer => ServicioInventario.ContarParaReponer();
+
+    /// <summary>
+    /// Lo que hay que reponer va primero, después lo regular y al final lo que
+    /// está bien. Dentro de cada grupo, alfabético.
+    /// </summary>
+    private List<Herramienta> HerramientasOrdenadas =>
+        _herramientas
+            .OrderByDescending(h => h.Estado)   // ParaReponer(3) > Regular(2) > Bueno(1)
+            .ThenBy(h => h.Nombre)
+            .ToList();
+
+    // base.OnInitialized() de primero: es lo que comprueba la sesión.
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (!Sesion.HaySesion) return;
+
+        Cargar();
+    }
+
+    private void Cargar() => _herramientas = ServicioInventario.Listar();
+
+    // --- Acciones -------------------------------------------------------------
+
+    private void AbrirCreacion()
+    {
+        _formulario = new Herramienta();
+        _errorFormulario = string.Empty;
+        _mensaje = string.Empty;
+        _modalFormulario = true;
+    }
+
+    /// <summary>Abre la edición sobre una COPIA, para que cancelar no deje cambios.</summary>
+    private void AbrirEdicion(Herramienta herramienta)
+    {
+        _formulario = herramienta.Copia();
+        _errorFormulario = string.Empty;
+        _mensaje = string.Empty;
+        _modalFormulario = true;
+    }
+
+    private void CerrarFormulario()
+    {
+        _modalFormulario = false;
+        _errorFormulario = string.Empty;
+    }
+
+    private void Guardar()
+    {
+        var resultado = EsEdicion
+            ? ServicioInventario.Actualizar(_formulario)
+            : ServicioInventario.Crear(_formulario);
+
+        if (resultado.Exito)
+        {
+            _mensaje = resultado.Mensaje;
+            _operacionExitosa = true;
+            CerrarFormulario();
+            Cargar();
+        }
+        else
+        {
+            _errorFormulario = resultado.Mensaje;
+        }
+    }
+
+    private void PedirConfirmacion(Herramienta herramienta)
+    {
+        _herramientaAEliminar = herramienta;
+        _mensaje = string.Empty;
+        _modalEliminar = true;
+    }
+
+    private void CancelarEliminacion()
+    {
+        _modalEliminar = false;
+        _herramientaAEliminar = null;
+    }
+
+    private void ConfirmarEliminacion()
+    {
+        if (_herramientaAEliminar is null) return;
+
+        var resultado = ServicioInventario.Eliminar(_herramientaAEliminar.Id);
+
+        _mensaje = resultado.Mensaje;
+        _operacionExitosa = resultado.Exito;
+        CancelarEliminacion();
+        Cargar();
+    }
+}

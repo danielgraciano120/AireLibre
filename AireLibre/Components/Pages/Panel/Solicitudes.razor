@@ -1,0 +1,307 @@
+@*
+    Solicitudes.razor — Vista 11: las solicitudes de plan (/panel/solicitudes).
+
+    QUÉ HACE: muestra lo que llega del formulario público de /planes y deja
+    convertir cada solicitud en cliente o descartarla.
+
+    POR QUÉ LA CONVERSIÓN PIDE TRES DATOS MÁS: el formulario público solo pide
+    nombre, documento, teléfono y plan. La ficha de cliente necesita además
+    estatura, peso y objetivo, que el profesor toma en la primera clase. Por eso
+    al convertir se abre un modal pidiendo esos tres.
+
+    LAS SOLICITUDES ATENDIDAS NO SE BORRAN: se marcan como Convertida o
+    Descartada y se siguen viendo abajo, para que quede el rastro de por dónde
+    entró cada cliente.
+*@
+@page "/panel/solicitudes"
+@layout PanelLayout
+@inherits PaginaPanel
+@inject DatosService Datos
+@inject ClienteService Clientes
+
+<PageTitle>Solicitudes — STRONGBODY</PageTitle>
+
+<div class="panel-titulo">
+    <div>
+        <span class="eyebrow">Llegan de /planes</span>
+        <h1>Solicitudes</h1>
+    </div>
+    <p class="texto-secundario texto-chico" style="margin: 0;">
+        @Pendientes.Count sin atender · @Atendidas.Count ya resueltas
+    </p>
+</div>
+
+@if (Sesion.HaySesion)
+{
+    @if (!string.IsNullOrEmpty(_mensaje))
+    {
+        <div class="aviso @(_operacionExitosa ? "" : "aviso--error")" role="status">
+            <p>@_mensaje</p>
+        </div>
+    }
+
+    @* --- Pendientes --- *@
+    <h2>Sin atender</h2>
+
+    @if (Pendientes.Count == 0)
+    {
+        <div class="vacio" style="margin-bottom: 2.5rem;">
+            <p>No hay solicitudes pendientes. Todo al día.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-2" style="margin-bottom: 2.5rem;">
+            @foreach (var solicitud in Pendientes)
+            {
+                <div class="tarjeta tarjeta--manana">
+                    <span class="eyebrow">
+                        Plan @Datos.NombrePlan(solicitud.PlanId) ·
+                        @HaceCuanto(solicitud.FechaSolicitud)
+                    </span>
+
+                    <h3>@solicitud.NombreCompleto</h3>
+
+                    <table class="tabla" style="margin-bottom: 1rem;">
+                        <tbody>
+                            <tr>
+                                <th style="width: 42%;">Documento</th>
+                                <td>@solicitud.TipoDocumento.Texto() @solicitud.NumeroIdentificacion</td>
+                            </tr>
+                            <tr><th>Teléfono</th><td>@solicitud.Telefono</td></tr>
+                            <tr>
+                                <th>Recibida</th>
+                                <td>@solicitud.FechaSolicitud.ToString("d 'de' MMMM, h:mm tt", Espanol)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="btn-fila">
+                        <button type="button" class="btn btn--primario btn--chico"
+                                @onclick="() => AbrirConversion(solicitud)">
+                            Convertir en cliente
+                        </button>
+                        <button type="button" class="btn btn--contorno btn--chico"
+                                @onclick="() => Descartar(solicitud.Id)">
+                            Descartar
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* --- Ya atendidas --- *@
+    @if (Atendidas.Count > 0)
+    {
+        <h2>Ya resueltas</h2>
+        <div class="tabla-scroll">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Documento</th>
+                        <th>Plan</th>
+                        <th>Recibida</th>
+                        <th>Resultado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var solicitud in Atendidas)
+                    {
+                        <tr>
+                            <td>@solicitud.NombreCompleto</td>
+                            <td class="texto-secundario">
+                                @solicitud.TipoDocumento.TextoCorto() @solicitud.NumeroIdentificacion
+                            </td>
+                            <td>@Datos.NombrePlan(solicitud.PlanId)</td>
+                            <td class="texto-secundario">
+                                @solicitud.FechaSolicitud.ToString("d 'de' MMMM", Espanol)
+                            </td>
+                            <td>
+                                @if (solicitud.Estado == EstadoSolicitud.Convertida)
+                                {
+                                    <span class="distintivo distintivo--ok">Convertida en cliente</span>
+                                }
+                                else
+                                {
+                                    <span class="distintivo distintivo--neutro">Descartada</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@* ---------------------------------------------------------------------------
+   MODAL DE CONVERSIÓN
+   Los cuatro datos que ya trae la solicitud se muestran, no se piden otra vez.
+   Solo se piden los tres que faltan para armar la ficha de cliente.
+--------------------------------------------------------------------------- *@
+<Modal Visible="_modalConversion" Titulo="Convertir en cliente" OnCerrar="CerrarConversion">
+    <ChildContent>
+        @if (_solicitudElegida is not null)
+        {
+            @if (!string.IsNullOrEmpty(_errorConversion))
+            {
+                <div class="aviso aviso--error" role="alert">
+                    <p>@_errorConversion</p>
+                </div>
+            }
+
+            <div class="aviso" style="border-left-color: var(--gris); background: rgba(110,110,115,0.08);">
+                <p class="texto-chico">
+                    <strong>@_solicitudElegida.NombreCompleto</strong><br />
+                    @_solicitudElegida.TipoDocumento.Texto() @_solicitudElegida.NumeroIdentificacion ·
+                    @_solicitudElegida.Telefono ·
+                    plan @Datos.NombrePlan(_solicitudElegida.PlanId)
+                </p>
+            </div>
+
+            <p class="texto-secundario texto-chico">
+                Faltan los datos que se toman en la primera clase:
+            </p>
+
+            <div class="formulario-grid">
+                <div class="campo">
+                    <label for="s-estatura">Estatura (metros)</label>
+                    <input id="s-estatura" type="number" step="0.01" min="1" max="2.5"
+                           placeholder="1.72" @bind="_estatura" />
+                </div>
+
+                <div class="campo">
+                    <label for="s-peso">Peso (kilogramos)</label>
+                    <input id="s-peso" type="number" step="0.1" min="20" max="300"
+                           placeholder="68.5" @bind="_peso" />
+                </div>
+            </div>
+
+            <div class="campo">
+                <label for="s-objetivo">Objetivo</label>
+                <select id="s-objetivo" @bind="_objetivo">
+                    @foreach (var objetivo in Enum.GetValues<Objetivo>())
+                    {
+                        <option value="@objetivo">@objetivo.Texto()</option>
+                    }
+                </select>
+            </div>
+
+            <p class="texto-secundario texto-chico">
+                Al convertirla se le abre la suscripción del plan que pidió,
+                marcada como <strong>en mora</strong> hasta que pague.
+            </p>
+        }
+    </ChildContent>
+
+    <Pie>
+        <button type="button" class="btn btn--contorno" @onclick="CerrarConversion">Cancelar</button>
+        <button type="button" class="btn btn--primario" @onclick="ConfirmarConversion">
+            Registrar como cliente
+        </button>
+    </Pie>
+</Modal>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Espanol = new("es-CO");
+
+    private string _mensaje = string.Empty;
+    private bool _operacionExitosa;
+
+    private bool _modalConversion;
+    private SolicitudPlan? _solicitudElegida;
+    private decimal _estatura;
+    private decimal _peso;
+    private Objetivo _objetivo = Objetivo.SaludYVitalidad;
+    private string _errorConversion = string.Empty;
+
+    /// <summary>Las que esperan decisión, la más reciente arriba.</summary>
+    private List<SolicitudPlan> Pendientes =>
+        Datos.Solicitudes
+            .Where(s => s.Estado == EstadoSolicitud.Pendiente)
+            .OrderByDescending(s => s.FechaSolicitud)
+            .ToList();
+
+    /// <summary>Las ya convertidas o descartadas, como registro histórico.</summary>
+    private List<SolicitudPlan> Atendidas =>
+        Datos.Solicitudes
+            .Where(s => s.Estado != EstadoSolicitud.Pendiente)
+            .OrderByDescending(s => s.FechaSolicitud)
+            .ToList();
+
+    /// <summary>
+    /// "Hace 2 horas", "ayer", "hace 3 días". Ubica la solicitud en el tiempo
+    /// más rápido que una fecha exacta, que es lo que importa para decidir a
+    /// quién llamar primero.
+    /// </summary>
+    private static string HaceCuanto(DateTime fecha)
+    {
+        var transcurrido = DateTime.Now - fecha;
+
+        if (transcurrido.TotalMinutes < 60)
+        {
+            var minutos = (int)transcurrido.TotalMinutes;
+            return minutos <= 1 ? "hace un momento" : $"hace {minutos} minutos";
+        }
+
+        if (transcurrido.TotalHours < 24)
+        {
+            var horas = (int)transcurrido.TotalHours;
+            return horas == 1 ? "hace una hora" : $"hace {horas} horas";
+        }
+
+        var dias = (int)transcurrido.TotalDays;
+        return dias == 1 ? "ayer" : $"hace {dias} días";
+    }
+
+    // --- Acciones -------------------------------------------------------------
+
+    private void AbrirConversion(SolicitudPlan solicitud)
+    {
+        _solicitudElegida = solicitud;
+        _estatura = 0;
+        _peso = 0;
+        _objetivo = Objetivo.SaludYVitalidad;
+        _errorConversion = string.Empty;
+        _mensaje = string.Empty;
+        _modalConversion = true;
+    }
+
+    private void CerrarConversion()
+    {
+        _modalConversion = false;
+        _solicitudElegida = null;
+        _errorConversion = string.Empty;
+    }
+
+    private void ConfirmarConversion()
+    {
+        if (_solicitudElegida is null) return;
+
+        // El servicio valida los rangos y el documento repetido; esta vista
+        // solo muestra lo que responda.
+        var resultado = Clientes.ConvertirSolicitudEnCliente(
+            _solicitudElegida.Id, _estatura, _peso, _objetivo);
+
+        if (resultado.Exito)
+        {
+            _mensaje = resultado.Mensaje;
+            _operacionExitosa = true;
+            CerrarConversion();
+        }
+        else
+        {
+            _errorConversion = resultado.Mensaje;
+        }
+    }
+
+    private void Descartar(int solicitudId)
+    {
+        var resultado = Clientes.DescartarSolicitud(solicitudId);
+
+        _mensaje = resultado.Mensaje;
+        _operacionExitosa = resultado.Exito;
+    }
+}

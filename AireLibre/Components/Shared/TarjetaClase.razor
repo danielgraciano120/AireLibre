@@ -1,0 +1,103 @@
+@*
+    TarjetaClase.razor — Tarjeta de un horario con su medidor de cupos.
+
+    QUÉ HACE: muestra una clase (grupo, hora y cupos) y el botón para separar
+    cupo. Es el componente donde vive el detalle visual característico del
+    sitio: la fila de 20 marcas verticales, una por cupo.
+
+    CÓMO SE USA:
+
+        <TarjetaClase Horario="h" Grupo="g" Ocupados="7" OnSeleccionar="Abrir" />
+
+    No calcula nada del negocio: recibe cuántos cupos hay ocupados ya contados
+    por ReservaService. Así la misma tarjeta sirve para el sitio público y para
+    cualquier otra vista que quiera mostrar una clase.
+
+    EL MEDIDOR DE CUPOS: se dibujan tantas marcas como CupoMaximo tenga el
+    horario (20). Las primeras "Ocupados" van sólidas y el resto en gris claro.
+    Es un conteo literal: se puede contar con el dedo cuántos cupos quedan, cosa
+    que una barra de progreso no permite.
+
+    COLOR SEGÚN LA JORNADA: rojo para la mañana, grafito para la noche. No
+    es decoración, es el código de color del dominio en todo el sitio. Cuando la
+    clase se llena, las marcas pasan a rojo oscuro.
+
+    ACCESIBILIDAD: las marcas llevan aria-hidden porque son una imagen del dato,
+    no el dato. La información real va en el texto de abajo, que es lo que lee
+    un lector de pantalla.
+*@
+
+<div class="tarjeta tarjeta--@Grupo.Jornada.ClaseCss()">
+
+    <span class="eyebrow">@Grupo.Nombre</span>
+    <h3>@Horario.HoraTexto</h3>
+
+    <div class="cupos @(EsNoche ? "cupos--noche" : "") @(EstaLleno ? "cupos--lleno" : "")">
+
+        @* Las 20 marcas. Las ocupadas van sólidas; las libres, en gris claro. *@
+        <div class="cupos-marcas" aria-hidden="true">
+            @for (var i = 0; i < Horario.CupoMaximo; i++)
+            {
+                <span class="marca-cupo @(i < Ocupados ? "marca-cupo--ocupada" : "")"></span>
+            }
+        </div>
+
+        <p class="cupo-texto">
+            @if (EstaLleno)
+            {
+                <text>Sin cupos disponibles · @Ocupados de @Horario.CupoMaximo</text>
+            }
+            else
+            {
+                <text><strong>@Disponibles</strong> @(Disponibles == 1 ? "cupo libre" : "cupos libres") de @Horario.CupoMaximo</text>
+            }
+        </p>
+    </div>
+
+    @if (EstaLleno)
+    {
+        @* Grupo lleno: se dice explícitamente y el botón queda deshabilitado.
+           La validación de verdad está en ReservaService; esto es la comodidad
+           para que la persona no pierda el tiempo llenando el formulario. *@
+        <div class="aviso aviso--error" style="margin-top: 1rem; margin-bottom: 0.75rem;">
+            <p>Este grupo está lleno. Prueba con otro horario.</p>
+        </div>
+
+        <button type="button" class="btn btn--primario" disabled>Separar cupo</button>
+    }
+    else
+    {
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn--primario" @onclick="Seleccionar">
+                Separar cupo
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Horario que se muestra. De aquí sale la hora y el cupo máximo.</summary>
+    [Parameter, EditorRequired] public Horario Horario { get; set; } = default!;
+
+    /// <summary>Grupo al que pertenece. Da el nombre y el color de la tarjeta.</summary>
+    [Parameter, EditorRequired] public Grupo Grupo { get; set; } = default!;
+
+    /// <summary>
+    /// Cuántos cupos están tomados. Lo calcula quien usa el componente
+    /// (normalmente ReservaService.ContarOcupados), no esta tarjeta.
+    /// </summary>
+    [Parameter] public int Ocupados { get; set; }
+
+    /// <summary>Se llama al pulsar "Separar cupo", con el horario elegido.</summary>
+    [Parameter] public EventCallback<Horario> OnSeleccionar { get; set; }
+
+    // --- Cálculos de apoyo, solo para mostrar --------------------------------
+
+    private int Disponibles => Math.Max(0, Horario.CupoMaximo - Ocupados);
+
+    private bool EstaLleno => Disponibles == 0;
+
+    private bool EsNoche => Grupo.Jornada == Jornada.Noche;
+
+    private async Task Seleccionar() => await OnSeleccionar.InvokeAsync(Horario);
+}
